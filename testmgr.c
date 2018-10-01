@@ -166,7 +166,6 @@ static void testmgr_free_buf(char *buf[XBUFSIZE])
 		free_page((unsigned long)buf[i]);
 }
 
-#if 0
 static int ahash_guard_result(char *result, char c, int size)
 {
 	int i;
@@ -558,6 +557,7 @@ static int test_hash(struct crypto_ahash *tfm,
 	return 0;
 }
 
+#if 0
 static int __test_aead(struct crypto_aead *tfm, int enc,
 		       const struct aead_testvec *template, unsigned int tcount,
 		       const bool diff_dst, const int align_offset)
@@ -1784,6 +1784,7 @@ static int alg_test_comp(const struct alg_test_desc *desc, const char *driver,
 	}
 	return err;
 }
+#endif
 
 static int __alg_test_hash(const struct hash_testvec *template,
 			   unsigned int tcount, const char *driver,
@@ -1844,6 +1845,7 @@ static int alg_test_hash(const struct alg_test_desc *desc, const char *driver,
 	return err;
 }
 
+#if 0
 static int alg_test_crc32c(const struct alg_test_desc *desc,
 			   const char *driver, u32 type, u32 mask)
 {
@@ -2368,6 +2370,13 @@ static const struct alg_test_desc alg_test_descs[] = {
 		.test = alg_test_skcipher,
 		.suite = {
 			.cipher = __VECS(gost2814789_tc26z_tv_template)
+		}
+	},
+	{
+		.alg = "gosthash94",
+		.test = alg_test_hash,
+		.suite = {
+			.hash = __VECS(gosthash94_tv_template)
 		}
 	},
 };
