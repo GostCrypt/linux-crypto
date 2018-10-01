@@ -40,15 +40,15 @@
 struct crypto_gosthash94_ctx {
 	u32 hash[8];		/* algorithm 256-bit state */
 	u32 sum[8];		/* sum of processed message blocks */
-	u8 message[GOSTHASH94_BLOCK_SIZE];	/* 256-bit buffer for leftovers */
+	u8 message[GOSTHASH94_BLOCK_SIZE]; /* 256-bit buffer */
 	u64 length;		/* number of processed bytes */
 };
 
 static void
-gost_block_compress(struct crypto_gosthash94_ctx *ctx, const u32 * block,
-		    const u32 * sbox)
+gost_block_compress(struct crypto_gosthash94_ctx *ctx, const u32 *block,
+		    const u32 *sbox)
 {
-	unsigned i;
+	unsigned int i;
 	u32 key[8], u[8], v[8], w[8], s[8];
 
 	/* u := hash, v := <256-bit message block> */
@@ -143,7 +143,10 @@ gost_block_compress(struct crypto_gosthash94_ctx *ctx, const u32 * block,
 		}
 	}
 
-	/* step hash function: x(block, hash) := psi^61(hash xor psi(block xor psi^12(S))) */
+	/*
+	 * step hash function:
+	 * x(block, hash) := psi^61(hash xor psi(block xor psi^12(S)))
+	 */
 
 	/* 12 rounds of the LFSR and xor in <message block> */
 	u[0] = block[0] ^ s[6];
@@ -238,11 +241,11 @@ gost_block_compress(struct crypto_gosthash94_ctx *ctx, const u32 * block,
 }
 
 static void
-gost_compute_sum_and_hash(struct crypto_gosthash94_ctx *ctx, const u8 * block,
-			  const u32 * sbox)
+gost_compute_sum_and_hash(struct crypto_gosthash94_ctx *ctx, const u8 *block,
+			  const u32 *sbox)
 {
 	u32 block_le[8];
-	unsigned i, carry;
+	unsigned int i, carry;
 
 	/* compute the 256-bit sum */
 	for (i = carry = 0; i < 8; i++, block += 4) {
@@ -259,14 +262,16 @@ gost_compute_sum_and_hash(struct crypto_gosthash94_ctx *ctx, const u8 * block,
 
 static void
 gosthash94_update_int(struct crypto_gosthash94_ctx *ctx,
-		      size_t length, const u8 * msg, const u32 * sbox)
+		      size_t length, const u8 *msg, const u32 *sbox)
 {
-	unsigned index = (unsigned)ctx->length & 31;
+	unsigned int index = (unsigned int)ctx->length % GOSTHASH94_BLOCK_SIZE;
+
 	ctx->length += length;
 
 	/* fill partial block */
 	if (index) {
-		unsigned left = GOSTHASH94_BLOCK_SIZE - index;
+		unsigned int left = GOSTHASH94_BLOCK_SIZE - index;
+
 		memcpy(ctx->message + index, msg,
 		       (length < left ? length : left));
 		if (length < left)
@@ -290,10 +295,10 @@ gosthash94_update_int(struct crypto_gosthash94_ctx *ctx,
 
 static void
 gosthash94_write_digest(struct crypto_gosthash94_ctx *ctx,
-			u8 * result, const u32 * sbox)
+			u8 *result, const u32 *sbox)
 {
-	unsigned index = ctx->length & 31;
-	unsigned i;
+	unsigned int index = ctx->length & 31;
+	unsigned int i;
 	u32 msg32[8];
 	__le32 *digest = (__le32 *) result;
 
@@ -327,7 +332,7 @@ static int gosthash94_init(struct shash_desc *desc)
 	return 0;
 }
 
-static int gosthash94_update(struct shash_desc *desc, const u8 * data,
+static int gosthash94_update(struct shash_desc *desc, const u8 *data,
 		unsigned int len)
 {
 	struct crypto_gosthash94_ctx *ctx = shash_desc_ctx(desc);
@@ -337,7 +342,7 @@ static int gosthash94_update(struct shash_desc *desc, const u8 * data,
 	return 0;
 }
 
-static int gosthash94_final(struct shash_desc *desc, u8 * result)
+static int gosthash94_final(struct shash_desc *desc, u8 *result)
 {
 	struct crypto_gosthash94_ctx *ctx = shash_desc_ctx(desc);
 
@@ -347,8 +352,8 @@ static int gosthash94_final(struct shash_desc *desc, u8 * result)
 	return 0;
 }
 
-static int gosthash94_finup(struct shash_desc *desc, const u8 * data,
-			    unsigned int len, u8 * out)
+static int gosthash94_finup(struct shash_desc *desc, const u8 *data,
+			    unsigned int len, u8 *out)
 {
 	gosthash94_update(desc, data, len);
 	return gosthash94_final(desc, out);
