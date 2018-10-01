@@ -2172,6 +2172,7 @@ const struct gost28147_param gost28147_param_TC26_Z = {
 		0x00000168, 0x00000150, 0x00000118, 0x00000138,
 	}
 };
+EXPORT_SYMBOL_GPL(gost28147_param_TC26_Z);
 
 /*
  *  A macro that performs a full encryption round of GOST 28147-89.

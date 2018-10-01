@@ -2373,6 +2373,13 @@ static const struct alg_test_desc alg_test_descs[] = {
 		}
 	},
 	{
+		.alg = "ecb(magma)",
+		.test = alg_test_skcipher,
+		.suite = {
+			.cipher = __VECS(magma_tv_template)
+		}
+	},
+	{
 		.alg = "gosthash94",
 		.test = alg_test_hash,
 		.suite = {
