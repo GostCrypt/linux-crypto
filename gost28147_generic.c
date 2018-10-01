@@ -37,6 +37,12 @@
 #include <asm/byteorder.h>
 #include <asm/unaligned.h>
 
+struct crypto_gost28147_ctx {
+	const u32 *sbox;
+	int key_meshing;
+	u32 key[GOST28147_KEY_SIZE/4];
+};
+
 /* pre-initialized GOST lookup tables based on rotated S-Box */
 const struct gost28147_param gost28147_param_test_3411 =
 {
@@ -2198,7 +2204,7 @@ const struct gost28147_param gost28147_param_TC26_Z =
  * is set. &crypto_gost28147_ctx _must_ be the private data embedded in @tfm
  * which is retrieved with crypto_tfm_ctx().
  */
-int crypto_gost28147_set_key(struct crypto_tfm *tfm, const u8 *in_key,
+static int crypto_gost28147_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 		unsigned int key_len)
 {
 	struct crypto_gost28147_ctx *ctx = crypto_tfm_ctx(tfm);

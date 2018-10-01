@@ -11,12 +11,6 @@
 #define GOST28147_KEY_SIZE	32
 #define GOST28147_BLOCK_SIZE	8
 
-struct crypto_gost28147_ctx {
-	const u32 *sbox;
-	int key_meshing;
-	u32 key[GOST28147_KEY_SIZE/4];
-};
-
 struct gost28147_param {
 	int key_meshing;
 	u32 sbox[4*256];
@@ -31,6 +25,4 @@ extern const struct gost28147_param gost28147_param_CryptoPro_C;
 extern const struct gost28147_param gost28147_param_CryptoPro_D;
 extern const struct gost28147_param gost28147_param_TC26_Z;
 
-int crypto_gost28147_set_key(struct crypto_tfm *tfm, const u8 *in_key,
-		unsigned int key_len);
 #endif
