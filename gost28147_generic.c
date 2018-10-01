@@ -2269,16 +2269,13 @@ static void gost28147_encrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 }
 
 /* decrypt a block of text */
-
-static void gost28147_decrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
+void crypto_gost28147_decrypt(const u32 *kp, const u32 *sbox,
+		const u32 *in, u32 *out)
 {
-	const struct crypto_gost28147_ctx *ctx = crypto_tfm_ctx(tfm);
 	u32 l, r, tmp;
-	const u32 *kp = ctx->key;
-	const u32 *sbox = ctx->sbox;
 
-	r = get_unaligned_le32(in);
-	l = get_unaligned_le32(in + 4);
+	r = in[0];
+	l = in[1];
 	GOST_ENCRYPT_ROUND(kp[0], kp[1], sbox);
 	GOST_ENCRYPT_ROUND(kp[2], kp[3], sbox);
 	GOST_ENCRYPT_ROUND(kp[4], kp[5], sbox);
@@ -2295,8 +2292,23 @@ static void gost28147_decrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 	GOST_ENCRYPT_ROUND(kp[5], kp[4], sbox);
 	GOST_ENCRYPT_ROUND(kp[3], kp[2], sbox);
 	GOST_ENCRYPT_ROUND(kp[1], kp[0], sbox);
-	put_unaligned_le32(l, out);
-	put_unaligned_le32(r, out + 4);
+	out[0] = l;
+	out[1] = r;
+}
+EXPORT_SYMBOL_GPL(crypto_gost28147_decrypt);
+
+static void gost28147_decrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
+{
+	const struct crypto_gost28147_ctx *ctx = crypto_tfm_ctx(tfm);
+	const u32 *kp = ctx->key;
+	const u32 *sbox = ctx->sbox;
+	u32 block[2];
+
+	block[0] = get_unaligned_le32(in);
+	block[1] = get_unaligned_le32(in + 4);
+	crypto_gost28147_decrypt(kp, sbox, block, block);
+	put_unaligned_le32(block[0], out);
+	put_unaligned_le32(block[1], out + 4);
 }
 
 static struct crypto_alg gost28147_alg = {

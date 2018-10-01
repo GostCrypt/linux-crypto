@@ -27,4 +27,6 @@ extern const struct gost28147_param gost28147_param_TC26_Z;
 
 void crypto_gost28147_encrypt(const u32 *key, const u32 *sbox,
 		const u32 *in, u32 *out);
+void crypto_gost28147_decrypt(const u32 *key, const u32 *sbox,
+		const u32 *in, u32 *out);
 #endif
