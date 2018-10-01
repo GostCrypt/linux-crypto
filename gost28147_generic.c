@@ -2216,7 +2216,7 @@ static int crypto_gost28147_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 		return -EINVAL;
 	};
 
-	for (i = 0; i < GOST28147_KEY_SIZE; i++, in_key += 4)
+	for (i = 0; i < GOST28147_KEY_SIZE / 4; i++, in_key += 4)
 		ctx->key[i] = get_unaligned_le32(in_key);
 
 	/* FIXME: We default to TC26-Z parameters for now */
