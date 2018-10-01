@@ -2225,7 +2225,6 @@ static int crypto_gost28147_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(crypto_gost28147_set_key);
 
 /* Encrypt a single block */
 
