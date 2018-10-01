@@ -577,6 +577,7 @@ const struct gost28147_param gost28147_param_CryptoPro_3411 =
     0x00000630, 0x00000610, 0x00000648, 0x00000658,
   }
 };
+EXPORT_SYMBOL_GPL(gost28147_param_CryptoPro_3411);
 
 const struct gost28147_param gost28147_param_Test_89 =
 {
