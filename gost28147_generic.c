@@ -2229,7 +2229,7 @@ static void gost28147_encrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 	const struct crypto_gost28147_ctx *ctx = crypto_tfm_ctx(tfm);
 	u32 l, r, tmp;
 	const u32 *kp = ctx->key;
-	u32 *sbox = ctx->sbox;
+	const u32 *sbox = ctx->sbox;
 
 	r = get_unaligned_le32(in);
 	l = get_unaligned_le32(in + 4);
@@ -2260,26 +2260,26 @@ static void gost28147_decrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 	const struct crypto_gost28147_ctx *ctx = crypto_tfm_ctx(tfm);
 	u32 l, r, tmp;
 	const u32 *kp = ctx->key;
-	u32 *sbox = ctx->sbox;
+	const u32 *sbox = ctx->sbox;
 
 	r = get_unaligned_le32(in);
 	l = get_unaligned_le32(in + 4);
 	GOST_ENCRYPT_ROUND(kp[0], kp[1], sbox)
 	GOST_ENCRYPT_ROUND(kp[2], kp[3], sbox)
 	GOST_ENCRYPT_ROUND(kp[4], kp[5], sbox)
-       	GOST_ENCRYPT_ROUND(kp[6], kp[7], sbox)
-       	GOST_ENCRYPT_ROUND(kp[7], kp[6], sbox)
-       	GOST_ENCRYPT_ROUND(kp[5], kp[4], sbox)
-       	GOST_ENCRYPT_ROUND(kp[3], kp[2], sbox)
-       	GOST_ENCRYPT_ROUND(kp[1], kp[0], sbox)
-       	GOST_ENCRYPT_ROUND(kp[7], kp[6], sbox)
-       	GOST_ENCRYPT_ROUND(kp[5], kp[4], sbox)
-       	GOST_ENCRYPT_ROUND(kp[3], kp[2], sbox)
-       	GOST_ENCRYPT_ROUND(kp[1], kp[0], sbox)
-       	GOST_ENCRYPT_ROUND(kp[7], kp[6], sbox)
-       	GOST_ENCRYPT_ROUND(kp[5], kp[4], sbox)
-       	GOST_ENCRYPT_ROUND(kp[3], kp[2], sbox)
-       	GOST_ENCRYPT_ROUND(kp[1], kp[0], sbox)
+	GOST_ENCRYPT_ROUND(kp[6], kp[7], sbox)
+	GOST_ENCRYPT_ROUND(kp[7], kp[6], sbox)
+	GOST_ENCRYPT_ROUND(kp[5], kp[4], sbox)
+	GOST_ENCRYPT_ROUND(kp[3], kp[2], sbox)
+	GOST_ENCRYPT_ROUND(kp[1], kp[0], sbox)
+	GOST_ENCRYPT_ROUND(kp[7], kp[6], sbox)
+	GOST_ENCRYPT_ROUND(kp[5], kp[4], sbox)
+	GOST_ENCRYPT_ROUND(kp[3], kp[2], sbox)
+	GOST_ENCRYPT_ROUND(kp[1], kp[0], sbox)
+	GOST_ENCRYPT_ROUND(kp[7], kp[6], sbox)
+	GOST_ENCRYPT_ROUND(kp[5], kp[4], sbox)
+	GOST_ENCRYPT_ROUND(kp[3], kp[2], sbox)
+	GOST_ENCRYPT_ROUND(kp[1], kp[0], sbox)
 	put_unaligned_le32(l, out);
 	put_unaligned_le32(r, out + 4);
 }
@@ -2317,6 +2317,6 @@ module_init(gost28147_init);
 module_exit(gost28147_fini);
 
 MODULE_DESCRIPTION("GOST 28147-89 (Magma) algorithm");
-MODULE_LICENSE("GPLv2");
+MODULE_LICENSE("GPL v2");
 MODULE_ALIAS_CRYPTO("gost28147");
 MODULE_ALIAS_CRYPTO("gost28147-generic");

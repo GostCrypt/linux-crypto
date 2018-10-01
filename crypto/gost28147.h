@@ -12,7 +12,7 @@
 #define GOST28147_BLOCK_SIZE	8
 
 struct crypto_gost28147_ctx {
-	u32 *sbox;
+	const u32 *sbox;
 	int key_meshing;
 	u32 key[GOST28147_KEY_SIZE/4];
 };
