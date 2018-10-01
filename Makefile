@@ -10,4 +10,4 @@ gost-test-y:= testmgr.o gost-test-main.o
 all: modules
 
 modules modules_install clean:
-	make -C $(KSRC) M=$(PWD) $@
+	$(MAKE) -C $(KSRC) M=$(PWD) $@
