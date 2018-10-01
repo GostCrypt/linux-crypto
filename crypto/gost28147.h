@@ -1,0 +1,36 @@
+/*
+ * Common values for GOST28147 algorithms
+ */
+
+#ifndef _CRYPTO_GOST28147_H
+#define _CRYPTO_GOST28147_H
+
+#include <linux/types.h>
+#include <linux/crypto.h>
+
+#define GOST28147_KEY_SIZE	32
+#define GOST28147_BLOCK_SIZE	8
+
+struct crypto_gost28147_ctx {
+	u32 *sbox;
+	int key_meshing;
+	u32 key[GOST28147_KEY_SIZE/4];
+};
+
+struct gost28147_param {
+	int key_meshing;
+	u32 sbox[4*256];
+};
+
+extern const struct gost28147_param gost28147_param_test_3411;
+extern const struct gost28147_param gost28147_param_CryptoPro_3411;
+extern const struct gost28147_param gost28147_param_Test_89;
+extern const struct gost28147_param gost28147_param_CryptoPro_A;
+extern const struct gost28147_param gost28147_param_CryptoPro_B;
+extern const struct gost28147_param gost28147_param_CryptoPro_C;
+extern const struct gost28147_param gost28147_param_CryptoPro_D;
+extern const struct gost28147_param gost28147_param_TC26_Z;
+
+int crypto_gost28147_set_key(struct crypto_tfm *tfm, const u8 *in_key,
+		unsigned int key_len);
+#endif
