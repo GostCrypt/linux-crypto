@@ -2195,9 +2195,8 @@ const struct gost28147_param gost28147_param_TC26_Z =
  * @key_len:	The size of the key.
  *
  * Returns 0 on success, on failure the %CRYPTO_TFM_RES_BAD_KEY_LEN flag in tfm
- * is set. The function uses crypto_aes_expand_key() to expand the key.
- * &crypto_aes_ctx _must_ be the private data embedded in @tfm which is
- * retrieved with crypto_tfm_ctx().
+ * is set. &crypto_gost28147_ctx _must_ be the private data embedded in @tfm
+ * which is retrieved with crypto_tfm_ctx().
  */
 int crypto_gost28147_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 		unsigned int key_len)
