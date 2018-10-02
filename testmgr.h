@@ -151,7 +151,7 @@ struct kpp_testvec {
 
 static const char zeroed_string[48];
 
-static const struct cipher_testvec gost2814789_tc26z_tv_template[] = {
+static const struct cipher_testvec gost28147_tc26z_tv_template[] = {
 	{
 		.key	= "\x81\x82\x83\x84\x85\x86\x87\x88"
 			  "\x89\x8a\x8b\x8c\x8d\x8e\x8f\x80"

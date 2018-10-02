@@ -2369,7 +2369,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 		.alg = "ecb(gost28147)",
 		.test = alg_test_skcipher,
 		.suite = {
-			.cipher = __VECS(gost2814789_tc26z_tv_template)
+			.cipher = __VECS(gost28147_tc26z_tv_template)
 		}
 	},
 	{
