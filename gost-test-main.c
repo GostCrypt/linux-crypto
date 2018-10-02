@@ -24,6 +24,10 @@ static int gost_test_init(void)
 	if (ret < 0)
 		ok = false;
 
+	ret = gost_alg_test("ecb(kuznyechik)", "ecb(kuznyechik)", 0, 0);
+	if (ret < 0)
+		ok = false;
+
 	ret = gost_alg_test("gosthash94", "gosthash94", 0, 0);
 	if (ret < 0)
 		ok = false;
