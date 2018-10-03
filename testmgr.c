@@ -2541,7 +2541,7 @@ test_done:
 	return rc;
 
 notest:
-	printk(KERN_INFO "alg: No test for %s (%s)\n", alg, driver);
+	printk(KERN_INFO "gost-alg: No test for %s (%s)\n", alg, driver);
 	return 0;
 non_fips_alg:
 	return -EINVAL;
