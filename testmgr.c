@@ -2394,6 +2394,27 @@ static const struct alg_test_desc alg_test_descs[] = {
 		}
 	},
 	{
+		.alg = "hmac(gosthash94)",
+		.test = alg_test_hash,
+		.suite = {
+			.hash = __VECS(hmac_gosthash94_tv_template)
+		}
+	},
+	{
+		.alg = "hmac(sb256)",
+		.test = alg_test_hash,
+		.suite = {
+			.hash = __VECS(hmac_sb256_tv_template)
+		}
+	},
+	{
+		.alg = "hmac(sb512)",
+		.test = alg_test_hash,
+		.suite = {
+			.hash = __VECS(hmac_sb512_tv_template)
+		}
+	},
+	{
 		.alg = "sb256",
 		.test = alg_test_hash,
 		.suite = {

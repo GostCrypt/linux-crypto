@@ -40,6 +40,18 @@ static int gost_test_init(void)
 	if (ret < 0)
 		ok = false;
 
+	ret = gost_alg_test("hmac(gosthash94)", "hmac(gosthash94)", 0, 0);
+	if (ret < 0)
+		ok = false;
+
+	ret = gost_alg_test("hmac(sb256)", "hmac(sb256)", 0, 0);
+	if (ret < 0)
+		ok = false;
+
+	ret = gost_alg_test("hmac(sb512)", "hmac(sb512)", 0, 0);
+	if (ret < 0)
+		ok = false;
+
 	return ok ? 0 : -1;
 }
 module_init(gost_test_init);
