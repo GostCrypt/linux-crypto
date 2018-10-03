@@ -2198,13 +2198,14 @@ EXPORT_SYMBOL_GPL(gost28147_param_TC26_Z);
  * @tfm:	The %crypto_tfm that is used in the context.
  * @in_key:	The input key.
  * @key_len:	The size of the key.
+ * @param:	GOST parameters to be used.
  *
  * Returns 0 on success, on failure the %CRYPTO_TFM_RES_BAD_KEY_LEN flag in tfm
  * is set. &crypto_gost28147_ctx _must_ be the private data embedded in @tfm
  * which is retrieved with crypto_tfm_ctx().
  */
 static int crypto_gost28147_set_key(struct crypto_tfm *tfm, const u8 *in_key,
-		unsigned int key_len)
+		unsigned int key_len, const struct gost28147_param *param)
 {
 	struct crypto_gost28147_ctx *ctx = crypto_tfm_ctx(tfm);
 	u32 *flags = &tfm->crt_flags;
@@ -2218,11 +2219,45 @@ static int crypto_gost28147_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 	for (i = 0; i < GOST28147_KEY_SIZE / 4; i++, in_key += 4)
 		ctx->key[i] = get_unaligned_le32(in_key);
 
-	/* FIXME: We default to TC26-Z parameters for now */
-	ctx->key_meshing = gost28147_param_TC26_Z.key_meshing;
-	ctx->sbox = gost28147_param_TC26_Z.sbox;
+	ctx->key_meshing = param->key_meshing;
+	ctx->sbox = param->sbox;
 
 	return 0;
+}
+
+static int gost28147_set_key_tc26z(struct crypto_tfm *tfm, const u8 *in_key,
+		unsigned int key_len)
+{
+	return crypto_gost28147_set_key(tfm, in_key, key_len,
+			&gost28147_param_TC26_Z);
+}
+
+static int gost28147_set_key_cpa(struct crypto_tfm *tfm, const u8 *in_key,
+		unsigned int key_len)
+{
+	return crypto_gost28147_set_key(tfm, in_key, key_len,
+			&gost28147_param_CryptoPro_A);
+}
+
+static int gost28147_set_key_cpb(struct crypto_tfm *tfm, const u8 *in_key,
+		unsigned int key_len)
+{
+	return crypto_gost28147_set_key(tfm, in_key, key_len,
+			&gost28147_param_CryptoPro_B);
+}
+
+static int gost28147_set_key_cpc(struct crypto_tfm *tfm, const u8 *in_key,
+		unsigned int key_len)
+{
+	return crypto_gost28147_set_key(tfm, in_key, key_len,
+			&gost28147_param_CryptoPro_C);
+}
+
+static int gost28147_set_key_cpd(struct crypto_tfm *tfm, const u8 *in_key,
+		unsigned int key_len)
+{
+	return crypto_gost28147_set_key(tfm, in_key, key_len,
+			&gost28147_param_CryptoPro_D);
 }
 
 /* Encrypt a single block */
@@ -2312,9 +2347,9 @@ static void gost28147_decrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 	put_unaligned_le32(block[1], out + 4);
 }
 
-static struct crypto_alg gost28147_alg = {
-	.cra_name		=	"gost28147",
-	.cra_driver_name	=	"gost28147-generic",
+static struct crypto_alg gost28147_algs[] = { {
+	.cra_name		=	"gost28147-tc26z",
+	.cra_driver_name	=	"gost28147-tc26z-generic",
 	.cra_priority		=	100,
 	.cra_flags		=	CRYPTO_ALG_TYPE_CIPHER,
 	.cra_blocksize		=	GOST28147_BLOCK_SIZE,
@@ -2324,21 +2359,89 @@ static struct crypto_alg gost28147_alg = {
 		.cipher = {
 			.cia_min_keysize	= GOST28147_KEY_SIZE,
 			.cia_max_keysize	= GOST28147_KEY_SIZE,
-			.cia_setkey		= crypto_gost28147_set_key,
+			.cia_setkey		= gost28147_set_key_tc26z,
 			.cia_encrypt		= gost28147_encrypt,
 			.cia_decrypt		= gost28147_decrypt
 		}
 	}
-};
+}, {
+	.cra_name		=	"gost28147-cpa",
+	.cra_driver_name	=	"gost28147-cpa-generic",
+	.cra_priority		=	100,
+	.cra_flags		=	CRYPTO_ALG_TYPE_CIPHER,
+	.cra_blocksize		=	GOST28147_BLOCK_SIZE,
+	.cra_ctxsize		=	sizeof(struct crypto_gost28147_ctx),
+	.cra_module		=	THIS_MODULE,
+	.cra_u			=	{
+		.cipher = {
+			.cia_min_keysize	= GOST28147_KEY_SIZE,
+			.cia_max_keysize	= GOST28147_KEY_SIZE,
+			.cia_setkey		= gost28147_set_key_cpa,
+			.cia_encrypt		= gost28147_encrypt,
+			.cia_decrypt		= gost28147_decrypt
+		}
+	}
+}, {
+	.cra_name		=	"gost28147-cpb",
+	.cra_driver_name	=	"gost28147-cpb-generic",
+	.cra_priority		=	100,
+	.cra_flags		=	CRYPTO_ALG_TYPE_CIPHER,
+	.cra_blocksize		=	GOST28147_BLOCK_SIZE,
+	.cra_ctxsize		=	sizeof(struct crypto_gost28147_ctx),
+	.cra_module		=	THIS_MODULE,
+	.cra_u			=	{
+		.cipher = {
+			.cia_min_keysize	= GOST28147_KEY_SIZE,
+			.cia_max_keysize	= GOST28147_KEY_SIZE,
+			.cia_setkey		= gost28147_set_key_cpb,
+			.cia_encrypt		= gost28147_encrypt,
+			.cia_decrypt		= gost28147_decrypt
+		}
+	}
+}, {
+	.cra_name		=	"gost28147-cpc",
+	.cra_driver_name	=	"gost28147-cpc-generic",
+	.cra_priority		=	100,
+	.cra_flags		=	CRYPTO_ALG_TYPE_CIPHER,
+	.cra_blocksize		=	GOST28147_BLOCK_SIZE,
+	.cra_ctxsize		=	sizeof(struct crypto_gost28147_ctx),
+	.cra_module		=	THIS_MODULE,
+	.cra_u			=	{
+		.cipher = {
+			.cia_min_keysize	= GOST28147_KEY_SIZE,
+			.cia_max_keysize	= GOST28147_KEY_SIZE,
+			.cia_setkey		= gost28147_set_key_cpc,
+			.cia_encrypt		= gost28147_encrypt,
+			.cia_decrypt		= gost28147_decrypt
+		}
+	}
+}, {
+	.cra_name		=	"gost28147-cpd",
+	.cra_driver_name	=	"gost28147-cpd-generic",
+	.cra_priority		=	100,
+	.cra_flags		=	CRYPTO_ALG_TYPE_CIPHER,
+	.cra_blocksize		=	GOST28147_BLOCK_SIZE,
+	.cra_ctxsize		=	sizeof(struct crypto_gost28147_ctx),
+	.cra_module		=	THIS_MODULE,
+	.cra_u			=	{
+		.cipher = {
+			.cia_min_keysize	= GOST28147_KEY_SIZE,
+			.cia_max_keysize	= GOST28147_KEY_SIZE,
+			.cia_setkey		= gost28147_set_key_cpd,
+			.cia_encrypt		= gost28147_encrypt,
+			.cia_decrypt		= gost28147_decrypt
+		}
+	}
+} };
 
 static int __init gost28147_init(void)
 {
-	return crypto_register_alg(&gost28147_alg);
+	return crypto_register_algs(gost28147_algs, ARRAY_SIZE(gost28147_algs));
 }
 
 static void __exit gost28147_fini(void)
 {
-	crypto_unregister_alg(&gost28147_alg);
+	crypto_unregister_algs(gost28147_algs, ARRAY_SIZE(gost28147_algs));
 }
 
 module_init(gost28147_init);

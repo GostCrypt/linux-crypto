@@ -12,7 +12,11 @@
 #include "gost-test.h"
 
 static const char *gost_tests[] = {
-	"ecb(gost28147)",
+	"ecb(gost28147-tc26z)",
+	"ecb(gost28147-cpa)",
+	"ecb(gost28147-cpb)",
+	"ecb(gost28147-cpc)",
+	"ecb(gost28147-cpd)",
 	"ecb(magma)",
 	"ecb(kuznyechik)",
 	"gosthash94",

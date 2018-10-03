@@ -2366,10 +2366,38 @@ static int alg_test_null(const struct alg_test_desc *desc,
 /* Please keep this list sorted by algorithm name. */
 static const struct alg_test_desc alg_test_descs[] = {
 	{
-		.alg = "ecb(gost28147)",
+		.alg = "ecb(gost28147-tc26z)",
 		.test = alg_test_skcipher,
 		.suite = {
 			.cipher = __VECS(gost28147_tc26z_tv_template)
+		}
+	},
+	{
+		.alg = "ecb(gost28147-cpa)",
+		.test = alg_test_skcipher,
+		.suite = {
+			.cipher = __VECS(gost28147_cpa_tv_template)
+		}
+	},
+	{
+		.alg = "ecb(gost28147-cpb)",
+		.test = alg_test_skcipher,
+		.suite = {
+			.cipher = __VECS(gost28147_cpb_tv_template)
+		}
+	},
+	{
+		.alg = "ecb(gost28147-cpc)",
+		.test = alg_test_skcipher,
+		.suite = {
+			.cipher = __VECS(gost28147_cpc_tv_template)
+		}
+	},
+	{
+		.alg = "ecb(gost28147-cpd)",
+		.test = alg_test_skcipher,
+		.suite = {
+			.cipher = __VECS(gost28147_cpd_tv_template)
 		}
 	},
 	{
