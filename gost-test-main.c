@@ -11,48 +11,31 @@
 #include <linux/module.h>
 #include "gost-test.h"
 
+static const char *gost_tests[] = {
+	"ecb(gost28147)",
+	"ecb(magma)",
+	"ecb(kuznyechik)",
+	"gosthash94",
+	"sb256",
+	"sb512",
+	"hmac(gosthash94)",
+	"hmac(sb256)",
+	"hmac(sb512)",
+};
+
 static int gost_test_init(void)
 {
 	int ret;
+	unsigned int i;
 	int ok = true;
 
-	ret = gost_alg_test("ecb(gost28147)", "ecb(gost28147)", 0, 0);
-	if (ret < 0)
-		ok = false;
+	for (i = 0; i < ARRAY_SIZE(gost_tests); i++) {
+		ret = gost_alg_test(gost_tests[i], gost_tests[i], 0, 0);
+		if (ret < 0)
+			ok = false;
+	}
 
-	ret = gost_alg_test("ecb(magma)", "ecb(magma)", 0, 0);
-	if (ret < 0)
-		ok = false;
-
-	ret = gost_alg_test("ecb(kuznyechik)", "ecb(kuznyechik)", 0, 0);
-	if (ret < 0)
-		ok = false;
-
-	ret = gost_alg_test("gosthash94", "gosthash94", 0, 0);
-	if (ret < 0)
-		ok = false;
-
-	ret = gost_alg_test("sb256", "sb256", 0, 0);
-	if (ret < 0)
-		ok = false;
-
-	ret = gost_alg_test("sb512", "sb512", 0, 0);
-	if (ret < 0)
-		ok = false;
-
-	ret = gost_alg_test("hmac(gosthash94)", "hmac(gosthash94)", 0, 0);
-	if (ret < 0)
-		ok = false;
-
-	ret = gost_alg_test("hmac(sb256)", "hmac(sb256)", 0, 0);
-	if (ret < 0)
-		ok = false;
-
-	ret = gost_alg_test("hmac(sb512)", "hmac(sb512)", 0, 0);
-	if (ret < 0)
-		ok = false;
-
-	return ok ? 0 : -1;
+	return ok ? 0 : -EIO;
 }
 module_init(gost_test_init);
 
