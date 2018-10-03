@@ -2393,6 +2393,20 @@ static const struct alg_test_desc alg_test_descs[] = {
 			.hash = __VECS(gosthash94_tv_template)
 		}
 	},
+	{
+		.alg = "sb256",
+		.test = alg_test_hash,
+		.suite = {
+			.hash = __VECS(streebog_256_tv_template)
+		}
+	},
+	{
+		.alg = "sb512",
+		.test = alg_test_hash,
+		.suite = {
+			.hash = __VECS(streebog_512_tv_template)
+		}
+	},
 };
 
 static bool alg_test_descs_checked;

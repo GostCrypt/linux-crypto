@@ -32,6 +32,14 @@ static int gost_test_init(void)
 	if (ret < 0)
 		ok = false;
 
+	ret = gost_alg_test("sb256", "sb256", 0, 0);
+	if (ret < 0)
+		ok = false;
+
+	ret = gost_alg_test("sb512", "sb512", 0, 0);
+	if (ret < 0)
+		ok = false;
+
 	return ok ? 0 : -1;
 }
 module_init(gost_test_init);

@@ -5,6 +5,7 @@ obj-m += gost28147_generic.o
 obj-m += gosthash94_generic.o
 obj-m += kuznyechik_generic.o
 obj-m += magma_generic.o
+obj-m += streebog_generic.o
 obj-m += gost-test.o
 
 gost-test-y:= testmgr.o gost-test-main.o
