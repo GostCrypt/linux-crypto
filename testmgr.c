@@ -2512,11 +2512,10 @@ int gost_alg_test(const char *driver, const char *alg, u32 type, u32 mask)
 					     type, mask);
 
 test_done:
-	if (fips_enabled && rc)
-		panic("%s: %s alg self test failed in fips mode!\n", driver, alg);
-
-	if (fips_enabled && !rc)
-		pr_info("alg: self-tests for %s (%s) passed\n", driver, alg);
+	if (rc)
+		pr_err("%s: %s gost-alg self test failed!\n", driver, alg);
+	else
+		pr_info("gost-alg: self-tests for %s (%s) passed\n", driver, alg);
 
 	return rc;
 
