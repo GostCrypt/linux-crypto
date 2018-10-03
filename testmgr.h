@@ -207,7 +207,7 @@ static const struct hash_testvec gosthash94_tv_template[] = {
 	}
 };
 
-static struct cipher_testvec kuznyechik_tv_template[] = {
+static const struct cipher_testvec kuznyechik_tv_template[] = {
 	{
 		.key	= "\x88\x99\xaa\xbb\xcc\xdd\xee\xff"
 			  "\x00\x11\x22\x33\x44\x55\x66\x77"
@@ -233,7 +233,7 @@ static struct cipher_testvec kuznyechik_tv_template[] = {
 	},
 };
 
-static struct cipher_testvec magma_tv_template[] = {
+static const struct cipher_testvec magma_tv_template[] = {
 	{
 		.key	= "\xff\xee\xdd\xcc\xbb\xaa\x99\x88"
 			  "\x77\x66\x55\x44\x33\x22\x11\x00"
