@@ -2208,11 +2208,10 @@ static int crypto_gost28147_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 		unsigned int key_len, const struct gost28147_param *param)
 {
 	struct crypto_gost28147_ctx *ctx = crypto_tfm_ctx(tfm);
-	u32 *flags = &tfm->crt_flags;
 	int i;
 
 	if (key_len != GOST28147_KEY_SIZE) {
-		*flags |= CRYPTO_TFM_RES_BAD_KEY_LEN;
+		crypto_tfm_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
 		return -EINVAL;
 	};
 
