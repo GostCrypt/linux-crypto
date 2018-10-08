@@ -32,8 +32,10 @@
 #include <crypto/rng.h>
 #include <crypto/drbg.h>
 #include <crypto/akcipher.h>
+#if 0
 #include <crypto/kpp.h>
 #include <crypto/acompress.h>
+#endif
 
 #include "internal.h"
 
@@ -106,10 +108,12 @@ struct akcipher_test_suite {
 	unsigned int count;
 };
 
+#if 0
 struct kpp_test_suite {
 	const struct kpp_testvec *vecs;
 	unsigned int count;
 };
+#endif
 
 struct alg_test_desc {
 	const char *alg;
@@ -125,7 +129,9 @@ struct alg_test_desc {
 		struct cprng_test_suite cprng;
 		struct drbg_test_suite drbg;
 		struct akcipher_test_suite akcipher;
+#if 0
 		struct kpp_test_suite kpp;
+#endif
 	} suite;
 };
 
