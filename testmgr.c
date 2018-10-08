@@ -2366,6 +2366,20 @@ static int alg_test_null(const struct alg_test_desc *desc,
 /* Please keep this list sorted by algorithm name. */
 static const struct alg_test_desc alg_test_descs[] = {
 	{
+		.alg = "cmac(kuznyechik)",
+		.test = alg_test_hash,
+		.suite = {
+			.hash = __VECS(cmac_kuznyechik_tv_template)
+		}
+	},
+	{
+		.alg = "cmac(magma)",
+		.test = alg_test_hash,
+		.suite = {
+			.hash = __VECS(cmac_magma_tv_template)
+		}
+	},
+	{
 		.alg = "ecb(gost28147-cpa)",
 		.test = alg_test_skcipher,
 		.suite = {

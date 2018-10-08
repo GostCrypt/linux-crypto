@@ -19,6 +19,8 @@ static const char *gost_tests[] = {
 	"ecb(gost28147-cpd)",
 	"ecb(magma)",
 	"ecb(kuznyechik)",
+	"cmac(magma)",
+	"cmac(kuznyechik)",
 	"gost28147imit-tc26z",
 	"gost28147imit-cpa",
 	"gost28147imit-cpb",
