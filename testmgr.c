@@ -194,7 +194,7 @@ static int ahash_partial_update(struct ahash_request **preq,
 			crypto_ahash_reqtfm(req));
 	state = kmalloc(statesize + sizeof(guard), GFP_KERNEL);
 	if (!state) {
-		pr_err("alg: hash: Failed to alloc state for %s\n", algo);
+		pr_err("gost-alg: hash: Failed to alloc state for %s\n", algo);
 		goto out_nostate;
 	}
 	memcpy(state + statesize, guard, sizeof(guard));
@@ -202,19 +202,19 @@ static int ahash_partial_update(struct ahash_request **preq,
 	ret = crypto_ahash_export(req, state);
 	WARN_ON(memcmp(state + statesize, guard, sizeof(guard)));
 	if (ret) {
-		pr_err("alg: hash: Failed to export() for %s\n", algo);
+		pr_err("gost-alg: hash: Failed to export() for %s\n", algo);
 		goto out;
 	}
 	ret = ahash_guard_result(result, 1, digestsize);
 	if (ret) {
-		pr_err("alg: hash: Failed, export used req->result for %s\n",
+		pr_err("gost-alg: hash: Failed, export used req->result for %s\n",
 		       algo);
 		goto out;
 	}
 	ahash_request_free(req);
 	req = ahash_request_alloc(tfm, GFP_KERNEL);
 	if (!req) {
-		pr_err("alg: hash: Failed to alloc request for %s\n", algo);
+		pr_err("gost-alg: hash: Failed to alloc request for %s\n", algo);
 		goto out_noreq;
 	}
 	ahash_request_set_callback(req,
@@ -227,12 +227,12 @@ static int ahash_partial_update(struct ahash_request **preq,
 	ahash_request_set_crypt(req, sg, result, template->tap[k]);
 	ret = crypto_ahash_import(req, state);
 	if (ret) {
-		pr_err("alg: hash: Failed to import() for %s\n", algo);
+		pr_err("gost-alg: hash: Failed to import() for %s\n", algo);
 		goto out;
 	}
 	ret = ahash_guard_result(result, 1, digestsize);
 	if (ret) {
-		pr_err("alg: hash: Failed, import used req->result for %s\n",
+		pr_err("gost-alg: hash: Failed, import used req->result for %s\n",
 		       algo);
 		goto out;
 	}
@@ -279,7 +279,7 @@ static int __test_hash(struct crypto_ahash *tfm,
 
 	req = ahash_request_alloc(tfm, GFP_KERNEL);
 	if (!req) {
-		printk(KERN_ERR "alg: hash: Failed to allocate request for "
+		printk(KERN_ERR "gost-alg: hash: Failed to allocate request for "
 		       "%s\n", algo);
 		goto out_noreq;
 	}
@@ -307,7 +307,7 @@ static int __test_hash(struct crypto_ahash *tfm,
 		if (template[i].ksize) {
 			crypto_ahash_clear_flags(tfm, ~0);
 			if (template[i].ksize > MAX_KEYLEN) {
-				pr_err("alg: hash: setkey failed on test %d for %s: key size %d > %d\n",
+				pr_err("gost-alg: hash: setkey failed on test %d for %s: key size %d > %d\n",
 				       j, algo, template[i].ksize, MAX_KEYLEN);
 				ret = -EINVAL;
 				goto out;
@@ -315,7 +315,7 @@ static int __test_hash(struct crypto_ahash *tfm,
 			memcpy(key, template[i].key, template[i].ksize);
 			ret = crypto_ahash_setkey(tfm, key, template[i].ksize);
 			if (ret) {
-				printk(KERN_ERR "alg: hash: setkey failed on "
+				printk(KERN_ERR "gost-alg: hash: setkey failed on "
 				       "test %d for %s: ret=%d\n", j, algo,
 				       -ret);
 				goto out;
@@ -326,7 +326,7 @@ static int __test_hash(struct crypto_ahash *tfm,
 		if (use_digest) {
 			ret = crypto_wait_req(crypto_ahash_digest(req), &wait);
 			if (ret) {
-				pr_err("alg: hash: digest failed on test %d "
+				pr_err("gost-alg: hash: digest failed on test %d "
 				       "for %s: ret=%d\n", j, algo, -ret);
 				goto out;
 			}
@@ -334,31 +334,31 @@ static int __test_hash(struct crypto_ahash *tfm,
 			memset(result, 1, digest_size);
 			ret = crypto_wait_req(crypto_ahash_init(req), &wait);
 			if (ret) {
-				pr_err("alg: hash: init failed on test %d "
+				pr_err("gost-alg: hash: init failed on test %d "
 				       "for %s: ret=%d\n", j, algo, -ret);
 				goto out;
 			}
 			ret = ahash_guard_result(result, 1, digest_size);
 			if (ret) {
-				pr_err("alg: hash: init failed on test %d "
+				pr_err("gost-alg: hash: init failed on test %d "
 				       "for %s: used req->result\n", j, algo);
 				goto out;
 			}
 			ret = crypto_wait_req(crypto_ahash_update(req), &wait);
 			if (ret) {
-				pr_err("alg: hash: update failed on test %d "
+				pr_err("gost-alg: hash: update failed on test %d "
 				       "for %s: ret=%d\n", j, algo, -ret);
 				goto out;
 			}
 			ret = ahash_guard_result(result, 1, digest_size);
 			if (ret) {
-				pr_err("alg: hash: update failed on test %d "
+				pr_err("gost-alg: hash: update failed on test %d "
 				       "for %s: used req->result\n", j, algo);
 				goto out;
 			}
 			ret = crypto_wait_req(crypto_ahash_final(req), &wait);
 			if (ret) {
-				pr_err("alg: hash: final failed on test %d "
+				pr_err("gost-alg: hash: final failed on test %d "
 				       "for %s: ret=%d\n", j, algo, -ret);
 				goto out;
 			}
@@ -366,7 +366,7 @@ static int __test_hash(struct crypto_ahash *tfm,
 
 		if (memcmp(result, template[i].digest,
 			   crypto_ahash_digestsize(tfm))) {
-			printk(KERN_ERR "alg: hash: Test %d failed for %s\n",
+			printk(KERN_ERR "gost-alg: hash: Test %d failed for %s\n",
 			       j, algo);
 			hexdump(result, crypto_ahash_digestsize(tfm));
 			ret = -EINVAL;
@@ -404,7 +404,7 @@ static int __test_hash(struct crypto_ahash *tfm,
 
 		if (template[i].ksize) {
 			if (template[i].ksize > MAX_KEYLEN) {
-				pr_err("alg: hash: setkey failed on test %d for %s: key size %d > %d\n",
+				pr_err("gost-alg: hash: setkey failed on test %d for %s: key size %d > %d\n",
 				       j, algo, template[i].ksize, MAX_KEYLEN);
 				ret = -EINVAL;
 				goto out;
@@ -414,7 +414,7 @@ static int __test_hash(struct crypto_ahash *tfm,
 			ret = crypto_ahash_setkey(tfm, key, template[i].ksize);
 
 			if (ret) {
-				printk(KERN_ERR "alg: hash: setkey "
+				printk(KERN_ERR "gost-alg: hash: setkey "
 				       "failed on chunking test %d "
 				       "for %s: ret=%d\n", j, algo, -ret);
 				goto out;
@@ -424,14 +424,14 @@ static int __test_hash(struct crypto_ahash *tfm,
 		ahash_request_set_crypt(req, sg, result, template[i].psize);
 		ret = crypto_wait_req(crypto_ahash_digest(req), &wait);
 		if (ret) {
-			pr_err("alg: hash: digest failed on chunking test %d for %s: ret=%d\n",
+			pr_err("gost-alg: hash: digest failed on chunking test %d for %s: ret=%d\n",
 			       j, algo, -ret);
 			goto out;
 		}
 
 		if (memcmp(result, template[i].digest,
 			   crypto_ahash_digestsize(tfm))) {
-			printk(KERN_ERR "alg: hash: Chunking test %d "
+			printk(KERN_ERR "gost-alg: hash: Chunking test %d "
 			       "failed for %s\n", j, algo);
 			hexdump(result, crypto_ahash_digestsize(tfm));
 			ret = -EINVAL;
@@ -461,7 +461,7 @@ static int __test_hash(struct crypto_ahash *tfm,
 		if (template[i].ksize) {
 			crypto_ahash_clear_flags(tfm, ~0);
 			if (template[i].ksize > MAX_KEYLEN) {
-				pr_err("alg: hash: setkey failed on test %d for %s: key size %d > %d\n",
+				pr_err("gost-alg: hash: setkey failed on test %d for %s: key size %d > %d\n",
 					j, algo, template[i].ksize, MAX_KEYLEN);
 				ret = -EINVAL;
 				goto out;
@@ -469,7 +469,7 @@ static int __test_hash(struct crypto_ahash *tfm,
 			memcpy(key, template[i].key, template[i].ksize);
 			ret = crypto_ahash_setkey(tfm, key, template[i].ksize);
 			if (ret) {
-				pr_err("alg: hash: setkey failed on test %d for %s: ret=%d\n",
+				pr_err("gost-alg: hash: setkey failed on test %d for %s: ret=%d\n",
 					j, algo, -ret);
 				goto out;
 			}
@@ -478,13 +478,13 @@ static int __test_hash(struct crypto_ahash *tfm,
 		ahash_request_set_crypt(req, sg, result, template[i].tap[0]);
 		ret = crypto_wait_req(crypto_ahash_init(req), &wait);
 		if (ret) {
-			pr_err("alg: hash: init failed on test %d for %s: ret=%d\n",
+			pr_err("gost-alg: hash: init failed on test %d for %s: ret=%d\n",
 				j, algo, -ret);
 			goto out;
 		}
 		ret = crypto_wait_req(crypto_ahash_update(req), &wait);
 		if (ret) {
-			pr_err("alg: hash: update failed on test %d for %s: ret=%d\n",
+			pr_err("gost-alg: hash: update failed on test %d for %s: ret=%d\n",
 				j, algo, -ret);
 			goto out;
 		}
@@ -495,7 +495,7 @@ static int __test_hash(struct crypto_ahash *tfm,
 				hash_buff, k, temp, &sg[0], algo, result,
 				&wait);
 			if (ret) {
-				pr_err("alg: hash: partial update failed on test %d for %s: ret=%d\n",
+				pr_err("gost-alg: hash: partial update failed on test %d for %s: ret=%d\n",
 					j, algo, -ret);
 				goto out_noreq;
 			}
@@ -503,13 +503,13 @@ static int __test_hash(struct crypto_ahash *tfm,
 		}
 		ret = crypto_wait_req(crypto_ahash_final(req), &wait);
 		if (ret) {
-			pr_err("alg: hash: final failed on test %d for %s: ret=%d\n",
+			pr_err("gost-alg: hash: final failed on test %d for %s: ret=%d\n",
 				j, algo, -ret);
 			goto out;
 		}
 		if (memcmp(result, template[i].digest,
 			   crypto_ahash_digestsize(tfm))) {
-			pr_err("alg: hash: Partial Test %d failed for %s\n",
+			pr_err("gost-alg: hash: Partial Test %d failed for %s\n",
 			       j, algo);
 			hexdump(result, crypto_ahash_digestsize(tfm));
 			ret = -EINVAL;
@@ -615,7 +615,7 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 
 	req = aead_request_alloc(tfm, GFP_KERNEL);
 	if (!req) {
-		pr_err("alg: aead%s: Failed to allocate request for %s\n",
+		pr_err("gost-alg: aead%s: Failed to allocate request for %s\n",
 		       d, algo);
 		goto out;
 	}
@@ -655,7 +655,7 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 			crypto_aead_set_flags(tfm, CRYPTO_TFM_REQ_WEAK_KEY);
 
 		if (template[i].klen > MAX_KEYLEN) {
-			pr_err("alg: aead%s: setkey failed on test %d for %s: key size %d > %d\n",
+			pr_err("gost-alg: aead%s: setkey failed on test %d for %s: key size %d > %d\n",
 			       d, j, algo, template[i].klen,
 			       MAX_KEYLEN);
 			ret = -EINVAL;
@@ -665,7 +665,7 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 
 		ret = crypto_aead_setkey(tfm, key, template[i].klen);
 		if (template[i].fail == !ret) {
-			pr_err("alg: aead%s: setkey failed on test %d for %s: flags=%x\n",
+			pr_err("gost-alg: aead%s: setkey failed on test %d for %s: flags=%x\n",
 			       d, j, algo, crypto_aead_get_flags(tfm));
 			goto out;
 		} else if (ret)
@@ -674,7 +674,7 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 		authsize = abs(template[i].rlen - template[i].ilen);
 		ret = crypto_aead_setauthsize(tfm, authsize);
 		if (ret) {
-			pr_err("alg: aead%s: Failed to set authsize to %u on test %d for %s\n",
+			pr_err("gost-alg: aead%s: Failed to set authsize to %u on test %d for %s\n",
 			       d, authsize, j, algo);
 			goto out;
 		}
@@ -708,7 +708,7 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 		case 0:
 			if (template[i].novrfy) {
 				/* verification was supposed to fail */
-				pr_err("alg: aead%s: %s failed on test %d for %s: ret was 0, expected -EBADMSG\n",
+				pr_err("gost-alg: aead%s: %s failed on test %d for %s: ret was 0, expected -EBADMSG\n",
 				       d, e, j, algo);
 				/* so really, we got a bad message */
 				ret = -EBADMSG;
@@ -721,14 +721,14 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 				continue;
 			/* fall through */
 		default:
-			pr_err("alg: aead%s: %s failed on test %d for %s: ret=%d\n",
+			pr_err("gost-alg: aead%s: %s failed on test %d for %s: ret=%d\n",
 			       d, e, j, algo, -ret);
 			goto out;
 		}
 
 		q = output;
 		if (memcmp(q, template[i].result, template[i].rlen)) {
-			pr_err("alg: aead%s: Test %d failed on %s for %s\n",
+			pr_err("gost-alg: aead%s: Test %d failed on %s for %s\n",
 			       d, j, e, algo);
 			hexdump(q, template[i].rlen);
 			ret = -EINVAL;
@@ -755,7 +755,7 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 		if (template[i].wk)
 			crypto_aead_set_flags(tfm, CRYPTO_TFM_REQ_WEAK_KEY);
 		if (template[i].klen > MAX_KEYLEN) {
-			pr_err("alg: aead%s: setkey failed on test %d for %s: key size %d > %d\n",
+			pr_err("gost-alg: aead%s: setkey failed on test %d for %s: key size %d > %d\n",
 			       d, j, algo, template[i].klen, MAX_KEYLEN);
 			ret = -EINVAL;
 			goto out;
@@ -764,7 +764,7 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 
 		ret = crypto_aead_setkey(tfm, key, template[i].klen);
 		if (template[i].fail == !ret) {
-			pr_err("alg: aead%s: setkey failed on chunk test %d for %s: flags=%x\n",
+			pr_err("gost-alg: aead%s: setkey failed on chunk test %d for %s: flags=%x\n",
 			       d, j, algo, crypto_aead_get_flags(tfm));
 			goto out;
 		} else if (ret)
@@ -827,7 +827,7 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 
 		ret = crypto_aead_setauthsize(tfm, authsize);
 		if (ret) {
-			pr_err("alg: aead%s: Failed to set authsize to %u on chunk test %d for %s\n",
+			pr_err("gost-alg: aead%s: Failed to set authsize to %u on chunk test %d for %s\n",
 			       d, authsize, j, algo);
 			goto out;
 		}
@@ -859,7 +859,7 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 		case 0:
 			if (template[i].novrfy) {
 				/* verification was supposed to fail */
-				pr_err("alg: aead%s: %s failed on chunk test %d for %s: ret was 0, expected -EBADMSG\n",
+				pr_err("gost-alg: aead%s: %s failed on chunk test %d for %s: ret was 0, expected -EBADMSG\n",
 				       d, e, j, algo);
 				/* so really, we got a bad message */
 				ret = -EBADMSG;
@@ -872,7 +872,7 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 				continue;
 			/* fall through */
 		default:
-			pr_err("alg: aead%s: %s failed on chunk test %d for %s: ret=%d\n",
+			pr_err("gost-alg: aead%s: %s failed on chunk test %d for %s: ret=%d\n",
 			       d, e, j, algo, -ret);
 			goto out;
 		}
@@ -891,7 +891,7 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 				n += enc ? authsize : -authsize;
 
 			if (memcmp(q, template[i].result + temp, n)) {
-				pr_err("alg: aead%s: Chunk test %d failed on %s at page %u for %s\n",
+				pr_err("gost-alg: aead%s: Chunk test %d failed on %s at page %u for %s\n",
 				       d, j, e, k, algo);
 				hexdump(q, n);
 				goto out;
@@ -910,7 +910,7 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 					;
 			}
 			if (n) {
-				pr_err("alg: aead%s: Result buffer corruption in chunk test %d on %s at page %u for %s: %u bytes:\n",
+				pr_err("gost-alg: aead%s: Result buffer corruption in chunk test %d on %s at page %u for %s: %u bytes:\n",
 				       d, j, e, k, algo, n);
 				hexdump(q, n);
 				goto out;
@@ -1019,7 +1019,7 @@ static int test_cipher(struct crypto_cipher *tfm, int enc,
 		ret = crypto_cipher_setkey(tfm, template[i].key,
 					   template[i].klen);
 		if (template[i].fail == !ret) {
-			printk(KERN_ERR "alg: cipher: setkey failed "
+			printk(KERN_ERR "gost-alg: cipher: setkey failed "
 			       "on test %d for %s: flags=%x\n", j,
 			       algo, crypto_cipher_get_flags(tfm));
 			goto out;
@@ -1038,7 +1038,7 @@ static int test_cipher(struct crypto_cipher *tfm, int enc,
 
 		q = data;
 		if (memcmp(q, result, template[i].len)) {
-			printk(KERN_ERR "alg: cipher: Test %d failed "
+			printk(KERN_ERR "gost-alg: cipher: Test %d failed "
 			       "on %s for %s\n", j, e, algo);
 			hexdump(q, template[i].len);
 			ret = -EINVAL;
@@ -1096,7 +1096,7 @@ static int __test_skcipher(struct crypto_skcipher *tfm, int enc,
 
 	req = skcipher_request_alloc(tfm, GFP_KERNEL);
 	if (!req) {
-		pr_err("alg: skcipher%s: Failed to allocate request for %s\n",
+		pr_err("gost-alg: skcipher%s: Failed to allocate request for %s\n",
 		       d, algo);
 		goto out;
 	}
@@ -1136,7 +1136,7 @@ static int __test_skcipher(struct crypto_skcipher *tfm, int enc,
 		ret = crypto_skcipher_setkey(tfm, template[i].key,
 					     template[i].klen);
 		if (template[i].fail == !ret) {
-			pr_err("alg: skcipher%s: setkey failed on test %d for %s: flags=%x\n",
+			pr_err("gost-alg: skcipher%s: setkey failed on test %d for %s: flags=%x\n",
 			       d, j, algo, crypto_skcipher_get_flags(tfm));
 			goto out;
 		} else if (ret)
@@ -1155,14 +1155,14 @@ static int __test_skcipher(struct crypto_skcipher *tfm, int enc,
 				      crypto_skcipher_decrypt(req), &wait);
 
 		if (ret) {
-			pr_err("alg: skcipher%s: %s failed on test %d for %s: ret=%d\n",
+			pr_err("gost-alg: skcipher%s: %s failed on test %d for %s: ret=%d\n",
 			       d, e, j, algo, -ret);
 			goto out;
 		}
 
 		q = data;
 		if (memcmp(q, result, template[i].len)) {
-			pr_err("alg: skcipher%s: Test %d failed (invalid result) on %s for %s\n",
+			pr_err("gost-alg: skcipher%s: Test %d failed (invalid result) on %s for %s\n",
 			       d, j, e, algo);
 			hexdump(q, template[i].len);
 			ret = -EINVAL;
@@ -1171,7 +1171,7 @@ static int __test_skcipher(struct crypto_skcipher *tfm, int enc,
 
 		if (template[i].generates_iv && enc &&
 		    memcmp(iv, template[i].iv, crypto_skcipher_ivsize(tfm))) {
-			pr_err("alg: skcipher%s: Test %d failed (invalid output IV) on %s for %s\n",
+			pr_err("gost-alg: skcipher%s: Test %d failed (invalid output IV) on %s for %s\n",
 			       d, j, e, algo);
 			hexdump(iv, crypto_skcipher_ivsize(tfm));
 			ret = -EINVAL;
@@ -1207,7 +1207,7 @@ static int __test_skcipher(struct crypto_skcipher *tfm, int enc,
 		ret = crypto_skcipher_setkey(tfm, template[i].key,
 					     template[i].klen);
 		if (template[i].fail == !ret) {
-			pr_err("alg: skcipher%s: setkey failed on chunk test %d for %s: flags=%x\n",
+			pr_err("gost-alg: skcipher%s: setkey failed on chunk test %d for %s: flags=%x\n",
 			       d, j, algo, crypto_skcipher_get_flags(tfm));
 			goto out;
 		} else if (ret)
@@ -1253,7 +1253,7 @@ static int __test_skcipher(struct crypto_skcipher *tfm, int enc,
 				      crypto_skcipher_decrypt(req), &wait);
 
 		if (ret) {
-			pr_err("alg: skcipher%s: %s failed on chunk test %d for %s: ret=%d\n",
+			pr_err("gost-alg: skcipher%s: %s failed on chunk test %d for %s: ret=%d\n",
 			       d, e, j, algo, -ret);
 			goto out;
 		}
@@ -1269,7 +1269,7 @@ static int __test_skcipher(struct crypto_skcipher *tfm, int enc,
 				    offset_in_page(IDX[k]);
 
 			if (memcmp(q, result + temp, template[i].tap[k])) {
-				pr_err("alg: skcipher%s: Chunk test %d failed on %s at page %u for %s\n",
+				pr_err("gost-alg: skcipher%s: Chunk test %d failed on %s at page %u for %s\n",
 				       d, j, e, k, algo);
 				hexdump(q, template[i].tap[k]);
 				goto out;
@@ -1279,7 +1279,7 @@ static int __test_skcipher(struct crypto_skcipher *tfm, int enc,
 			for (n = 0; offset_in_page(q + n) && q[n]; n++)
 				;
 			if (n) {
-				pr_err("alg: skcipher%s: Result buffer corruption in chunk test %d on %s at page %u for %s: %u bytes:\n",
+				pr_err("gost-alg: skcipher%s: Result buffer corruption in chunk test %d on %s at page %u for %s: %u bytes:\n",
 				       d, j, e, k, algo, n);
 				hexdump(q, n);
 				goto out;
@@ -1366,7 +1366,7 @@ static int test_comp(struct crypto_comp *tfm,
 		ret = crypto_comp_compress(tfm, ctemplate[i].input,
 					   ilen, output, &dlen);
 		if (ret) {
-			printk(KERN_ERR "alg: comp: compression failed "
+			printk(KERN_ERR "gost-alg: comp: compression failed "
 			       "on test %d for %s: ret=%d\n", i + 1, algo,
 			       -ret);
 			goto out;
@@ -1377,13 +1377,13 @@ static int test_comp(struct crypto_comp *tfm,
 		ret = crypto_comp_decompress(tfm, output,
 					     ilen, decomp_output, &dlen);
 		if (ret) {
-			pr_err("alg: comp: compression failed: decompress: on test %d for %s failed: ret=%d\n",
+			pr_err("gost-alg: comp: compression failed: decompress: on test %d for %s failed: ret=%d\n",
 			       i + 1, algo, -ret);
 			goto out;
 		}
 
 		if (dlen != ctemplate[i].inlen) {
-			printk(KERN_ERR "alg: comp: Compression test %d "
+			printk(KERN_ERR "gost-alg: comp: Compression test %d "
 			       "failed for %s: output len = %d\n", i + 1, algo,
 			       dlen);
 			ret = -EINVAL;
@@ -1392,7 +1392,7 @@ static int test_comp(struct crypto_comp *tfm,
 
 		if (memcmp(decomp_output, ctemplate[i].input,
 			   ctemplate[i].inlen)) {
-			pr_err("alg: comp: compression failed: output differs: on test %d for %s\n",
+			pr_err("gost-alg: comp: compression failed: output differs: on test %d for %s\n",
 			       i + 1, algo);
 			hexdump(decomp_output, dlen);
 			ret = -EINVAL;
@@ -1410,14 +1410,14 @@ static int test_comp(struct crypto_comp *tfm,
 		ret = crypto_comp_decompress(tfm, dtemplate[i].input,
 					     ilen, decomp_output, &dlen);
 		if (ret) {
-			printk(KERN_ERR "alg: comp: decompression failed "
+			printk(KERN_ERR "gost-alg: comp: decompression failed "
 			       "on test %d for %s: ret=%d\n", i + 1, algo,
 			       -ret);
 			goto out;
 		}
 
 		if (dlen != dtemplate[i].outlen) {
-			printk(KERN_ERR "alg: comp: Decompression test %d "
+			printk(KERN_ERR "gost-alg: comp: Decompression test %d "
 			       "failed for %s: output len = %d\n", i + 1, algo,
 			       dlen);
 			ret = -EINVAL;
@@ -1425,7 +1425,7 @@ static int test_comp(struct crypto_comp *tfm,
 		}
 
 		if (memcmp(decomp_output, dtemplate[i].output, dlen)) {
-			printk(KERN_ERR "alg: comp: Decompression test %d "
+			printk(KERN_ERR "gost-alg: comp: Decompression test %d "
 			       "failed for %s\n", i + 1, algo);
 			hexdump(decomp_output, dlen);
 			ret = -EINVAL;
@@ -1482,7 +1482,7 @@ static int test_acomp(struct crypto_acomp *tfm,
 
 		req = acomp_request_alloc(tfm);
 		if (!req) {
-			pr_err("alg: acomp: request alloc failed for %s\n",
+			pr_err("gost-alg: acomp: request alloc failed for %s\n",
 			       algo);
 			kfree(input_vec);
 			ret = -ENOMEM;
@@ -1495,7 +1495,7 @@ static int test_acomp(struct crypto_acomp *tfm,
 
 		ret = crypto_wait_req(crypto_acomp_compress(req), &wait);
 		if (ret) {
-			pr_err("alg: acomp: compression failed on test %d for %s: ret=%d\n",
+			pr_err("gost-alg: acomp: compression failed on test %d for %s: ret=%d\n",
 			       i + 1, algo, -ret);
 			kfree(input_vec);
 			acomp_request_free(req);
@@ -1511,7 +1511,7 @@ static int test_acomp(struct crypto_acomp *tfm,
 
 		ret = crypto_wait_req(crypto_acomp_decompress(req), &wait);
 		if (ret) {
-			pr_err("alg: acomp: compression failed on test %d for %s: ret=%d\n",
+			pr_err("gost-alg: acomp: compression failed on test %d for %s: ret=%d\n",
 			       i + 1, algo, -ret);
 			kfree(input_vec);
 			acomp_request_free(req);
@@ -1519,7 +1519,7 @@ static int test_acomp(struct crypto_acomp *tfm,
 		}
 
 		if (req->dlen != ctemplate[i].inlen) {
-			pr_err("alg: acomp: Compression test %d failed for %s: output len = %d\n",
+			pr_err("gost-alg: acomp: Compression test %d failed for %s: output len = %d\n",
 			       i + 1, algo, req->dlen);
 			ret = -EINVAL;
 			kfree(input_vec);
@@ -1528,7 +1528,7 @@ static int test_acomp(struct crypto_acomp *tfm,
 		}
 
 		if (memcmp(input_vec, decomp_out, req->dlen)) {
-			pr_err("alg: acomp: Compression test %d failed for %s\n",
+			pr_err("gost-alg: acomp: Compression test %d failed for %s\n",
 			       i + 1, algo);
 			hexdump(output, req->dlen);
 			ret = -EINVAL;
@@ -1559,7 +1559,7 @@ static int test_acomp(struct crypto_acomp *tfm,
 
 		req = acomp_request_alloc(tfm);
 		if (!req) {
-			pr_err("alg: acomp: request alloc failed for %s\n",
+			pr_err("gost-alg: acomp: request alloc failed for %s\n",
 			       algo);
 			kfree(input_vec);
 			ret = -ENOMEM;
@@ -1572,7 +1572,7 @@ static int test_acomp(struct crypto_acomp *tfm,
 
 		ret = crypto_wait_req(crypto_acomp_decompress(req), &wait);
 		if (ret) {
-			pr_err("alg: acomp: decompression failed on test %d for %s: ret=%d\n",
+			pr_err("gost-alg: acomp: decompression failed on test %d for %s: ret=%d\n",
 			       i + 1, algo, -ret);
 			kfree(input_vec);
 			acomp_request_free(req);
@@ -1580,7 +1580,7 @@ static int test_acomp(struct crypto_acomp *tfm,
 		}
 
 		if (req->dlen != dtemplate[i].outlen) {
-			pr_err("alg: acomp: Decompression test %d failed for %s: output len = %d\n",
+			pr_err("gost-alg: acomp: Decompression test %d failed for %s: output len = %d\n",
 			       i + 1, algo, req->dlen);
 			ret = -EINVAL;
 			kfree(input_vec);
@@ -1589,7 +1589,7 @@ static int test_acomp(struct crypto_acomp *tfm,
 		}
 
 		if (memcmp(output, dtemplate[i].output, req->dlen)) {
-			pr_err("alg: acomp: Decompression test %d failed for %s\n",
+			pr_err("gost-alg: acomp: Decompression test %d failed for %s\n",
 			       i + 1, algo);
 			hexdump(output, req->dlen);
 			ret = -EINVAL;
@@ -1623,7 +1623,7 @@ static int test_cprng(struct crypto_rng *tfm,
 
 	seed = kmalloc(seedsize, GFP_KERNEL);
 	if (!seed) {
-		printk(KERN_ERR "alg: cprng: Failed to allocate seed space "
+		printk(KERN_ERR "gost-alg: cprng: Failed to allocate seed space "
 		       "for %s\n", algo);
 		return -ENOMEM;
 	}
@@ -1639,7 +1639,7 @@ static int test_cprng(struct crypto_rng *tfm,
 
 		err = crypto_rng_reset(tfm, seed, seedsize);
 		if (err) {
-			printk(KERN_ERR "alg: cprng: Failed to reset rng "
+			printk(KERN_ERR "gost-alg: cprng: Failed to reset rng "
 			       "for %s\n", algo);
 			goto out;
 		}
@@ -1648,7 +1648,7 @@ static int test_cprng(struct crypto_rng *tfm,
 			err = crypto_rng_get_bytes(tfm, result,
 						   template[i].rlen);
 			if (err < 0) {
-				printk(KERN_ERR "alg: cprng: Failed to obtain "
+				printk(KERN_ERR "gost-alg: cprng: Failed to obtain "
 				       "the correct amount of random data for "
 				       "%s (requested %d)\n", algo,
 				       template[i].rlen);
@@ -1659,7 +1659,7 @@ static int test_cprng(struct crypto_rng *tfm,
 		err = memcmp(result, template[i].result,
 			     template[i].rlen);
 		if (err) {
-			printk(KERN_ERR "alg: cprng: Test %d failed for %s\n",
+			printk(KERN_ERR "gost-alg: cprng: Test %d failed for %s\n",
 			       i, algo);
 			hexdump(result, template[i].rlen);
 			err = -EINVAL;
@@ -1680,7 +1680,7 @@ static int alg_test_aead(const struct alg_test_desc *desc, const char *driver,
 
 	tfm = crypto_alloc_aead(driver, type, mask);
 	if (IS_ERR(tfm)) {
-		printk(KERN_ERR "alg: aead: Failed to load transform for %s: "
+		printk(KERN_ERR "gost-alg: aead: Failed to load transform for %s: "
 		       "%ld\n", driver, PTR_ERR(tfm));
 		return PTR_ERR(tfm);
 	}
@@ -1711,7 +1711,7 @@ static int alg_test_cipher(const struct alg_test_desc *desc,
 
 	tfm = crypto_alloc_cipher(driver, type, mask);
 	if (IS_ERR(tfm)) {
-		printk(KERN_ERR "alg: cipher: Failed to load transform for "
+		printk(KERN_ERR "gost-alg: cipher: Failed to load transform for "
 		       "%s: %ld\n", driver, PTR_ERR(tfm));
 		return PTR_ERR(tfm);
 	}
@@ -1733,7 +1733,7 @@ static int alg_test_skcipher(const struct alg_test_desc *desc,
 
 	tfm = crypto_alloc_skcipher(driver, type, mask);
 	if (IS_ERR(tfm)) {
-		printk(KERN_ERR "alg: skcipher: Failed to load transform for "
+		printk(KERN_ERR "gost-alg: skcipher: Failed to load transform for "
 		       "%s: %ld\n", driver, PTR_ERR(tfm));
 		return PTR_ERR(tfm);
 	}
@@ -1758,7 +1758,7 @@ static int alg_test_comp(const struct alg_test_desc *desc, const char *driver,
 	if (algo_type == CRYPTO_ALG_TYPE_ACOMPRESS) {
 		acomp = crypto_alloc_acomp(driver, type, mask);
 		if (IS_ERR(acomp)) {
-			pr_err("alg: acomp: Failed to load transform for %s: %ld\n",
+			pr_err("gost-alg: acomp: Failed to load transform for %s: %ld\n",
 			       driver, PTR_ERR(acomp));
 			return PTR_ERR(acomp);
 		}
@@ -1770,7 +1770,7 @@ static int alg_test_comp(const struct alg_test_desc *desc, const char *driver,
 	} else {
 		comp = crypto_alloc_comp(driver, type, mask);
 		if (IS_ERR(comp)) {
-			pr_err("alg: comp: Failed to load transform for %s: %ld\n",
+			pr_err("gost-alg: comp: Failed to load transform for %s: %ld\n",
 			       driver, PTR_ERR(comp));
 			return PTR_ERR(comp);
 		}
@@ -1795,7 +1795,7 @@ static int __alg_test_hash(const struct hash_testvec *template,
 
 	tfm = crypto_alloc_ahash(driver, type, mask);
 	if (IS_ERR(tfm)) {
-		printk(KERN_ERR "alg: hash: Failed to load transform for %s: "
+		printk(KERN_ERR "gost-alg: hash: Failed to load transform for %s: "
 		       "%ld\n", driver, PTR_ERR(tfm));
 		return PTR_ERR(tfm);
 	}
@@ -1827,7 +1827,7 @@ static int alg_test_hash(const struct alg_test_desc *desc, const char *driver,
 	}
 	for (nr_keyed = 0; nr_unkeyed + nr_keyed < tcount; nr_keyed++) {
 		if (!template[nr_unkeyed + nr_keyed].ksize) {
-			pr_err("alg: hash: test vectors for %s out of order, "
+			pr_err("gost-alg: hash: test vectors for %s out of order, "
 			       "unkeyed ones must come first\n", desc->alg);
 			return -EINVAL;
 		}
@@ -1859,7 +1859,7 @@ static int alg_test_crc32c(const struct alg_test_desc *desc,
 
 	tfm = crypto_alloc_shash(driver, type, mask);
 	if (IS_ERR(tfm)) {
-		printk(KERN_ERR "alg: crc32c: Failed to load transform for %s: "
+		printk(KERN_ERR "gost-alg: crc32c: Failed to load transform for %s: "
 		       "%ld\n", driver, PTR_ERR(tfm));
 		err = PTR_ERR(tfm);
 		goto out;
@@ -1875,13 +1875,13 @@ static int alg_test_crc32c(const struct alg_test_desc *desc,
 		*ctx = le32_to_cpu(420553207);
 		err = crypto_shash_final(shash, (u8 *)&val);
 		if (err) {
-			printk(KERN_ERR "alg: crc32c: Operation failed for "
+			printk(KERN_ERR "gost-alg: crc32c: Operation failed for "
 			       "%s: %d\n", driver, err);
 			break;
 		}
 
 		if (val != ~420553207) {
-			printk(KERN_ERR "alg: crc32c: Test failed for %s: "
+			printk(KERN_ERR "gost-alg: crc32c: Test failed for %s: "
 			       "%d\n", driver, val);
 			err = -EINVAL;
 		}
@@ -1901,7 +1901,7 @@ static int alg_test_cprng(const struct alg_test_desc *desc, const char *driver,
 
 	rng = crypto_alloc_rng(driver, type, mask);
 	if (IS_ERR(rng)) {
-		printk(KERN_ERR "alg: cprng: Failed to load transform for %s: "
+		printk(KERN_ERR "gost-alg: cprng: Failed to load transform for %s: "
 		       "%ld\n", driver, PTR_ERR(rng));
 		return PTR_ERR(rng);
 	}
@@ -1928,7 +1928,7 @@ static int drbg_cavs_test(const struct drbg_testvec *test, int pr,
 
 	drng = crypto_alloc_rng(driver, type, mask);
 	if (IS_ERR(drng)) {
-		printk(KERN_ERR "alg: drbg: could not allocate DRNG handle for "
+		printk(KERN_ERR "gost-alg: drbg: could not allocate DRNG handle for "
 		       "%s\n", driver);
 		kzfree(buf);
 		return -ENOMEM;
@@ -1939,7 +1939,7 @@ static int drbg_cavs_test(const struct drbg_testvec *test, int pr,
 	drbg_string_fill(&pers, test->pers, test->perslen);
 	ret = crypto_drbg_reset_test(drng, &pers, &test_data);
 	if (ret) {
-		printk(KERN_ERR "alg: drbg: Failed to reset rng\n");
+		printk(KERN_ERR "gost-alg: drbg: Failed to reset rng\n");
 		goto outbuf;
 	}
 
@@ -1953,7 +1953,7 @@ static int drbg_cavs_test(const struct drbg_testvec *test, int pr,
 			buf, test->expectedlen, &addtl);
 	}
 	if (ret < 0) {
-		printk(KERN_ERR "alg: drbg: could not obtain random data for "
+		printk(KERN_ERR "gost-alg: drbg: could not obtain random data for "
 		       "driver %s\n", driver);
 		goto outbuf;
 	}
@@ -1968,7 +1968,7 @@ static int drbg_cavs_test(const struct drbg_testvec *test, int pr,
 			buf, test->expectedlen, &addtl);
 	}
 	if (ret < 0) {
-		printk(KERN_ERR "alg: drbg: could not obtain random data for "
+		printk(KERN_ERR "gost-alg: drbg: could not obtain random data for "
 		       "driver %s\n", driver);
 		goto outbuf;
 	}
@@ -1997,7 +1997,7 @@ static int alg_test_drbg(const struct alg_test_desc *desc, const char *driver,
 	for (i = 0; i < tcount; i++) {
 		err = drbg_cavs_test(&template[i], pr, driver, type, mask);
 		if (err) {
-			printk(KERN_ERR "alg: drbg: Test %d failed for %s\n",
+			printk(KERN_ERR "gost-alg: drbg: Test %d failed for %s\n",
 			       i, driver);
 			err = -EINVAL;
 			break;
@@ -2048,7 +2048,7 @@ static int do_test_kpp(struct crypto_kpp *tfm, const struct kpp_testvec *vec,
 	/* Compute party A's public key */
 	err = crypto_wait_req(crypto_kpp_generate_public_key(req), &wait);
 	if (err) {
-		pr_err("alg: %s: Party A: generate public key test failed. err %d\n",
+		pr_err("gost-alg: %s: Party A: generate public key test failed. err %d\n",
 		       alg, err);
 		goto free_output;
 	}
@@ -2065,7 +2065,7 @@ static int do_test_kpp(struct crypto_kpp *tfm, const struct kpp_testvec *vec,
 		/* Verify calculated public key */
 		if (memcmp(vec->expected_a_public, sg_virt(req->dst),
 			   vec->expected_a_public_size)) {
-			pr_err("alg: %s: Party A: generate public key test failed. Invalid output\n",
+			pr_err("gost-alg: %s: Party A: generate public key test failed. Invalid output\n",
 			       alg);
 			err = -EINVAL;
 			goto free_output;
@@ -2088,7 +2088,7 @@ static int do_test_kpp(struct crypto_kpp *tfm, const struct kpp_testvec *vec,
 				 crypto_req_done, &wait);
 	err = crypto_wait_req(crypto_kpp_compute_shared_secret(req), &wait);
 	if (err) {
-		pr_err("alg: %s: Party A: compute shared secret test failed. err %d\n",
+		pr_err("gost-alg: %s: Party A: compute shared secret test failed. err %d\n",
 		       alg, err);
 		goto free_all;
 	}
@@ -2120,7 +2120,7 @@ static int do_test_kpp(struct crypto_kpp *tfm, const struct kpp_testvec *vec,
 		err = crypto_wait_req(crypto_kpp_compute_shared_secret(req),
 				      &wait);
 		if (err) {
-			pr_err("alg: %s: Party B: compute shared secret failed. err %d\n",
+			pr_err("gost-alg: %s: Party B: compute shared secret failed. err %d\n",
 			       alg, err);
 			goto free_all;
 		}
@@ -2136,7 +2136,7 @@ static int do_test_kpp(struct crypto_kpp *tfm, const struct kpp_testvec *vec,
 	 */
 	if (memcmp(shared_secret, sg_virt(req->dst),
 		   vec->expected_ss_size)) {
-		pr_err("alg: %s: compute shared secret test failed. Invalid output\n",
+		pr_err("gost-alg: %s: compute shared secret test failed. Invalid output\n",
 		       alg);
 		err = -EINVAL;
 	}
@@ -2160,7 +2160,7 @@ static int test_kpp(struct crypto_kpp *tfm, const char *alg,
 	for (i = 0; i < tcount; i++) {
 		ret = do_test_kpp(tfm, vecs++, alg);
 		if (ret) {
-			pr_err("alg: %s: test failed on vector %d, err=%d\n",
+			pr_err("gost-alg: %s: test failed on vector %d, err=%d\n",
 			       alg, i + 1, ret);
 			return ret;
 		}
@@ -2176,7 +2176,7 @@ static int alg_test_kpp(const struct alg_test_desc *desc, const char *driver,
 
 	tfm = crypto_alloc_kpp(driver, type, mask);
 	if (IS_ERR(tfm)) {
-		pr_err("alg: kpp: Failed to load tfm for %s: %ld\n",
+		pr_err("gost-alg: kpp: Failed to load tfm for %s: %ld\n",
 		       driver, PTR_ERR(tfm));
 		return PTR_ERR(tfm);
 	}
@@ -2244,17 +2244,17 @@ static int test_akcipher_one(struct crypto_akcipher *tfm,
 			      /* Run asymmetric encrypt */
 			      crypto_akcipher_encrypt(req), &wait);
 	if (err) {
-		pr_err("alg: akcipher: encrypt test failed. err %d\n", err);
+		pr_err("gost-alg: akcipher: encrypt test failed. err %d\n", err);
 		goto free_all;
 	}
 	if (req->dst_len != vecs->c_size) {
-		pr_err("alg: akcipher: encrypt test failed. Invalid output len\n");
+		pr_err("gost-alg: akcipher: encrypt test failed. Invalid output len\n");
 		err = -EINVAL;
 		goto free_all;
 	}
 	/* verify that encrypted message is equal to expected */
 	if (memcmp(vecs->c, outbuf_enc, vecs->c_size)) {
-		pr_err("alg: akcipher: encrypt test failed. Invalid output\n");
+		pr_err("gost-alg: akcipher: encrypt test failed. Invalid output\n");
 		hexdump(outbuf_enc, vecs->c_size);
 		err = -EINVAL;
 		goto free_all;
@@ -2286,12 +2286,12 @@ static int test_akcipher_one(struct crypto_akcipher *tfm,
 			      /* Run asymmetric decrypt */
 			      crypto_akcipher_decrypt(req), &wait);
 	if (err) {
-		pr_err("alg: akcipher: decrypt test failed. err %d\n", err);
+		pr_err("gost-alg: akcipher: decrypt test failed. err %d\n", err);
 		goto free_all;
 	}
 	out_len = req->dst_len;
 	if (out_len < vecs->m_size) {
-		pr_err("alg: akcipher: decrypt test failed. "
+		pr_err("gost-alg: akcipher: decrypt test failed. "
 		       "Invalid output len %u\n", out_len);
 		err = -EINVAL;
 		goto free_all;
@@ -2300,7 +2300,7 @@ static int test_akcipher_one(struct crypto_akcipher *tfm,
 	if (memchr_inv(outbuf_dec, 0, out_len - vecs->m_size) ||
 	    memcmp(vecs->m, outbuf_dec + out_len - vecs->m_size,
 		   vecs->m_size)) {
-		pr_err("alg: akcipher: decrypt test failed. Invalid output\n");
+		pr_err("gost-alg: akcipher: decrypt test failed. Invalid output\n");
 		hexdump(outbuf_dec, out_len);
 		err = -EINVAL;
 	}
@@ -2327,7 +2327,7 @@ static int test_akcipher(struct crypto_akcipher *tfm, const char *alg,
 		if (!ret)
 			continue;
 
-		pr_err("alg: akcipher: test %d failed for %s, err=%d\n",
+		pr_err("gost-alg: akcipher: test %d failed for %s, err=%d\n",
 		       i + 1, algo, ret);
 		return ret;
 	}
@@ -2342,7 +2342,7 @@ static int alg_test_akcipher(const struct alg_test_desc *desc,
 
 	tfm = crypto_alloc_akcipher(driver, type, mask);
 	if (IS_ERR(tfm)) {
-		pr_err("alg: akcipher: Failed to load tfm for %s: %ld\n",
+		pr_err("gost-alg: akcipher: Failed to load tfm for %s: %ld\n",
 		       driver, PTR_ERR(tfm));
 		return PTR_ERR(tfm);
 	}
@@ -2519,7 +2519,7 @@ int gost_alg_test(const char *driver, const char *alg, u32 type, u32 mask)
 	int rc;
 
 	if (!fips_enabled && notests) {
-		printk_once(KERN_INFO "alg: self-tests disabled\n");
+		printk_once(KERN_INFO "gost-alg: self-tests disabled\n");
 		return 0;
 	}
 
