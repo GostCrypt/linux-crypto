@@ -2415,6 +2415,41 @@ static const struct alg_test_desc alg_test_descs[] = {
 		}
 	},
 	{
+		.alg = "gost28147imit-cpa",
+		.test = alg_test_hash,
+		.suite = {
+			.hash = __VECS(gost28147imit_cpa_tv_template)
+		}
+	},
+	{
+		.alg = "gost28147imit-cpb",
+		.test = alg_test_hash,
+		.suite = {
+			.hash = __VECS(gost28147imit_cpb_tv_template)
+		}
+	},
+	{
+		.alg = "gost28147imit-cpc",
+		.test = alg_test_hash,
+		.suite = {
+			.hash = __VECS(gost28147imit_cpc_tv_template)
+		}
+	},
+	{
+		.alg = "gost28147imit-cpd",
+		.test = alg_test_hash,
+		.suite = {
+			.hash = __VECS(gost28147imit_cpd_tv_template)
+		}
+	},
+	{
+		.alg = "gost28147imit-tc26z",
+		.test = alg_test_hash,
+		.suite = {
+			.hash = __VECS(gost28147imit_tc26z_tv_template)
+		}
+	},
+	{
 		.alg = "gosthash94",
 		.test = alg_test_hash,
 		.suite = {

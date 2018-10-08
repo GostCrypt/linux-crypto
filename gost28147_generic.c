@@ -29,6 +29,8 @@
  */
 
 #include <crypto/gost28147.h>
+#include <crypto/hash.h>
+#include <crypto/internal/hash.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/types.h>
@@ -41,6 +43,19 @@ struct crypto_gost28147_ctx {
 	const u32 *sbox;
 	int key_meshing;
 	u32 key[GOST28147_KEY_SIZE/4];
+};
+
+struct crypto_gost28147imit_desc_ctx {
+	const u32 *sbox;
+	int key_meshing;
+	u32 key[GOST28147IMIT_KEY_SIZE/4];
+	u32 state[GOST28147IMIT_BLOCK_SIZE/4];
+	u32 count;
+	u8 buffer[GOST28147IMIT_BLOCK_SIZE];
+};
+
+struct crypto_gost28147imit_ctx {
+	u32 key[GOST28147IMIT_KEY_SIZE/4];
 };
 
 /* pre-initialized GOST lookup tables based on rotated S-Box */
@@ -2346,6 +2361,147 @@ static void gost28147_decrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 	put_unaligned_le32(block[1], out + 4);
 }
 
+static int gost28147imit_init(struct shash_desc *desc, const struct gost28147_param *param)
+{
+	struct crypto_gost28147imit_desc_ctx *ctx = shash_desc_ctx(desc);
+	struct crypto_gost28147imit_ctx *tfm_ctx = crypto_shash_ctx(desc->tfm);
+
+	ctx->state[0] = 0;
+	ctx->state[1] = 0;
+	ctx->count = 0;
+	ctx->sbox = param->sbox;
+	ctx->key_meshing = param->key_meshing;
+	memcpy(ctx->key, tfm_ctx->key, sizeof(ctx->key));
+
+	return 0;
+}
+
+static int gost28147imit_tc26z_init(struct shash_desc *desc)
+{
+	return gost28147imit_init(desc, &gost28147_param_TC26_Z);
+}
+
+static int gost28147imit_cpa_init(struct shash_desc *desc)
+{
+	return gost28147imit_init(desc, &gost28147_param_CryptoPro_A);
+}
+
+static int gost28147imit_cpb_init(struct shash_desc *desc)
+{
+	return gost28147imit_init(desc, &gost28147_param_CryptoPro_B);
+}
+
+static int gost28147imit_cpc_init(struct shash_desc *desc)
+{
+	return gost28147imit_init(desc, &gost28147_param_CryptoPro_C);
+}
+
+static int gost28147imit_cpd_init(struct shash_desc *desc)
+{
+	return gost28147imit_init(desc, &gost28147_param_CryptoPro_D);
+}
+
+static int gost28147imit_setkey(struct crypto_shash *tfm, const u8 *key,
+		unsigned int key_len)
+{
+	struct crypto_gost28147imit_ctx *ctx = crypto_shash_ctx(tfm);
+	int i;
+
+	if (key_len != GOST28147IMIT_KEY_SIZE) {
+		crypto_shash_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
+		return -EINVAL;
+	};
+
+	for (i = 0; i < GOST28147IMIT_KEY_SIZE / 4; i++, key += 4)
+		ctx->key[i] = get_unaligned_le32(key);
+
+	return 0;
+}
+
+static inline void gost28147_imit_simple(const u32 *key, const u32 *sbox,
+		const u32 *in, u32 *out)
+{
+	u32 l, r, tmp;
+
+	r = in[0];
+	l = in[1];
+	GOST_ENCRYPT_ROUND(key[0], key[1], sbox);
+	GOST_ENCRYPT_ROUND(key[2], key[3], sbox);
+	GOST_ENCRYPT_ROUND(key[4], key[5], sbox);
+	GOST_ENCRYPT_ROUND(key[6], key[7], sbox);
+	GOST_ENCRYPT_ROUND(key[0], key[1], sbox);
+	GOST_ENCRYPT_ROUND(key[2], key[3], sbox);
+	GOST_ENCRYPT_ROUND(key[4], key[5], sbox);
+	GOST_ENCRYPT_ROUND(key[6], key[7], sbox);
+	*out = r;
+	*(out + 1) = l;
+}
+
+static void gost28147_imit_compress(struct crypto_gost28147imit_desc_ctx *ctx,
+		const u8 *data, unsigned int blocks)
+{
+	u32 block[2];
+	unsigned int i;
+
+	for (i = 0; i < blocks; i++, data += 8) {
+		block[0] = get_unaligned_le32(data + 0) ^ ctx->state[0];
+		block[1] = get_unaligned_le32(data + 4) ^ ctx->state[1];
+		gost28147_imit_simple(ctx->key, ctx->sbox, block, ctx->state);
+	}
+}
+
+static int gost28147imit_update(struct shash_desc *desc, const u8 *data, unsigned int len)
+{
+	struct crypto_gost28147imit_desc_ctx *sctx = shash_desc_ctx(desc);
+	unsigned int partial = sctx->count % GOST28147IMIT_BLOCK_SIZE;
+
+	sctx->count += len;
+
+	if (unlikely((partial + len) >= GOST28147IMIT_BLOCK_SIZE)) {
+		int blocks;
+
+		if (partial) {
+			int p = GOST28147IMIT_BLOCK_SIZE - partial;
+
+			memcpy(sctx->buffer + partial, data, p);
+			data += p;
+			len -= p;
+
+			gost28147_imit_compress(sctx, sctx->buffer, 1);
+		}
+
+		blocks = len / GOST28147IMIT_BLOCK_SIZE;
+		len %= GOST28147IMIT_BLOCK_SIZE;
+
+		if (blocks) {
+			gost28147_imit_compress(sctx, data, blocks);
+			data += blocks * GOST28147IMIT_BLOCK_SIZE;
+		}
+		partial = 0;
+	}
+	if (len)
+		memcpy(sctx->buffer + partial, data, len);
+
+	return 0;
+}
+
+static int gost28147imit_final(struct shash_desc *desc, u8 *out)
+{
+	struct crypto_gost28147imit_desc_ctx *sctx = shash_desc_ctx(desc);
+	const uint8_t zero[GOST28147IMIT_BLOCK_SIZE] = { 0 };
+	unsigned int partial = sctx->count % GOST28147IMIT_BLOCK_SIZE;
+
+	if (partial)
+		gost28147imit_update(desc, zero, GOST28147IMIT_BLOCK_SIZE - partial);
+
+	if (sctx->count == GOST28147IMIT_BLOCK_SIZE)
+		gost28147imit_update(desc, zero, GOST28147IMIT_BLOCK_SIZE);
+
+	put_unaligned_le32(sctx->state[0], out);
+
+	return 0;
+}
+
 static struct crypto_alg gost28147_algs[] = { {
 	.cra_name		=	"gost28147-tc26z",
 	.cra_driver_name	=	"gost28147-tc26z-generic",
@@ -2433,13 +2589,97 @@ static struct crypto_alg gost28147_algs[] = { {
 	}
 } };
 
+static struct shash_alg gost28147imit_algs[] = { {
+	.digestsize	= GOST28147IMIT_DIGEST_SIZE,
+	.init		= gost28147imit_tc26z_init,
+	.setkey		= gost28147imit_setkey,
+	.update		= gost28147imit_update,
+	.final		= gost28147imit_final,
+	.descsize	= sizeof(struct crypto_gost28147imit_desc_ctx),
+	.base		= {
+		.cra_name	=	"gost28147imit-tc26z",
+		.cra_driver_name =	"gost28147-tc26z-generic",
+		.cra_priority	=	100,
+		.cra_flags	=	CRYPTO_ALG_TYPE_SHASH,
+		.cra_blocksize	=	GOST28147IMIT_BLOCK_SIZE,
+		.cra_ctxsize	=	sizeof(struct crypto_gost28147imit_ctx),
+		.cra_module	=	THIS_MODULE,
+	}
+}, {
+	.digestsize	= GOST28147IMIT_DIGEST_SIZE,
+	.init		= gost28147imit_cpa_init,
+	.setkey		= gost28147imit_setkey,
+	.update		= gost28147imit_update,
+	.final		= gost28147imit_final,
+	.descsize	= sizeof(struct crypto_gost28147imit_desc_ctx),
+	.base		= {
+		.cra_name	=	"gost28147imit-cpa",
+		.cra_driver_name =	"gost28147imit-cpa-generic",
+		.cra_priority	=	100,
+		.cra_flags	=	CRYPTO_ALG_TYPE_SHASH,
+		.cra_blocksize	=	GOST28147IMIT_BLOCK_SIZE,
+		.cra_ctxsize	=	sizeof(struct crypto_gost28147imit_ctx),
+		.cra_module	=	THIS_MODULE,
+	}
+}, {
+	.digestsize	= GOST28147IMIT_DIGEST_SIZE,
+	.init		= gost28147imit_cpb_init,
+	.setkey		= gost28147imit_setkey,
+	.update		= gost28147imit_update,
+	.final		= gost28147imit_final,
+	.descsize	= sizeof(struct crypto_gost28147imit_desc_ctx),
+	.base		= {
+		.cra_name	=	"gost28147imit-cpb",
+		.cra_driver_name =	"gost28147imit-cpb-generic",
+		.cra_priority	=	100,
+		.cra_flags	=	CRYPTO_ALG_TYPE_SHASH,
+		.cra_blocksize	=	GOST28147IMIT_BLOCK_SIZE,
+		.cra_ctxsize	=	sizeof(struct crypto_gost28147imit_ctx),
+		.cra_module	=	THIS_MODULE,
+	}
+}, {
+	.digestsize	= GOST28147IMIT_DIGEST_SIZE,
+	.init		= gost28147imit_cpc_init,
+	.setkey		= gost28147imit_setkey,
+	.update		= gost28147imit_update,
+	.final		= gost28147imit_final,
+	.descsize	= sizeof(struct crypto_gost28147imit_desc_ctx),
+	.base		= {
+		.cra_name	=	"gost28147imit-cpc",
+		.cra_driver_name =	"gost28147imit-cpc-generic",
+		.cra_priority	=	100,
+		.cra_flags	=	CRYPTO_ALG_TYPE_SHASH,
+		.cra_blocksize	=	GOST28147IMIT_BLOCK_SIZE,
+		.cra_ctxsize	=	sizeof(struct crypto_gost28147imit_ctx),
+		.cra_module	=	THIS_MODULE,
+	}
+}, {
+	.digestsize	= GOST28147IMIT_DIGEST_SIZE,
+	.init		= gost28147imit_cpd_init,
+	.setkey		= gost28147imit_setkey,
+	.update		= gost28147imit_update,
+	.final		= gost28147imit_final,
+	.descsize	= sizeof(struct crypto_gost28147imit_desc_ctx),
+	.base		= {
+		.cra_name	=	"gost28147imit-cpd",
+		.cra_driver_name =	"gost28147imit-cpd-generic",
+		.cra_priority	=	100,
+		.cra_flags	=	CRYPTO_ALG_TYPE_SHASH,
+		.cra_blocksize	=	GOST28147IMIT_BLOCK_SIZE,
+		.cra_ctxsize	=	sizeof(struct crypto_gost28147imit_ctx),
+		.cra_module	=	THIS_MODULE,
+	}
+} };
+
 static int __init gost28147_init(void)
 {
-	return crypto_register_algs(gost28147_algs, ARRAY_SIZE(gost28147_algs));
+	return crypto_register_algs(gost28147_algs, ARRAY_SIZE(gost28147_algs)) ?:
+		crypto_register_shashes(gost28147imit_algs, ARRAY_SIZE(gost28147imit_algs));
 }
 
 static void __exit gost28147_fini(void)
 {
+	crypto_unregister_shashes(gost28147imit_algs, ARRAY_SIZE(gost28147imit_algs));
 	crypto_unregister_algs(gost28147_algs, ARRAY_SIZE(gost28147_algs));
 }
 
