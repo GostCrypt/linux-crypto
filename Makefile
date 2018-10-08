@@ -10,6 +10,8 @@ obj-m += gost-test.o
 
 gost-test-y:= testmgr.o gost-test-main.o
 
+ccflags-y := -I $(PWD)
+
 all: modules
 
 modules modules_install clean:
