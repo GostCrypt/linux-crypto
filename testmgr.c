@@ -145,6 +145,41 @@ static void hexdump(unsigned char *buf, unsigned int len)
 			buf, len, false);
 }
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 15, 0)
+
+struct tcrypt_result {
+	struct completion completion;
+	int err;
+};
+
+static void tcrypt_complete(struct crypto_async_request *req, int err)
+{
+	struct tcrypt_result *res = req->data;
+
+	if (err == -EINPROGRESS)
+		return;
+
+	res->err = err;
+	complete(&res->completion);
+}
+
+static int wait_async_op(int ret, struct tcrypt_result *tr)
+{
+	if (ret == -EINPROGRESS || ret == -EBUSY) {
+		wait_for_completion(&tr->completion);
+		reinit_completion(&tr->completion);
+		ret = tr->err;
+	}
+	return ret;
+}
+
+#define crypto_wait tcrypt_result
+#define crypto_req_done tcrypt_complete
+#define crypto_wait_req wait_async_op
+#define crypto_init_wait(a) init_completion(&(a)->completion)
+
+#endif
+
 static int testmgr_alloc_buf(char *buf[XBUFSIZE])
 {
 	int i;
