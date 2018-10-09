@@ -27,11 +27,13 @@ static const char *gost_tests[] = {
 	"gost28147imit-cpc",
 	"gost28147imit-cpd",
 	"gosthash94",
+	"hmac(gosthash94)",
+#if IS_ENABLED(CONFIG_CRYPTO_STREEBOG)
 	"sb256",
 	"sb512",
-	"hmac(gosthash94)",
 	"hmac(sb256)",
 	"hmac(sb512)",
+#endif
 };
 
 static int gost_test_init(void)
