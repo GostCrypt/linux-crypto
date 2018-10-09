@@ -20,7 +20,6 @@
  *
  */
 
-#include <crypto/aead.h>
 #include <crypto/hash.h>
 #include <crypto/skcipher.h>
 #include <linux/err.h>
@@ -29,12 +28,10 @@
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
 #include <linux/string.h>
-#include <crypto/rng.h>
-#include <crypto/drbg.h>
-#include <crypto/akcipher.h>
 #if 0
+#include <crypto/aead.h>
+#include <crypto/akcipher.h>
 #include <crypto/kpp.h>
-#include <crypto/acompress.h>
 #endif
 
 #include "internal.h"
@@ -69,23 +66,9 @@ MODULE_PARM_DESC(notests, "disable crypto self-tests");
 #define ENCRYPT 1
 #define DECRYPT 0
 
-struct aead_test_suite {
-	struct {
-		const struct aead_testvec *vecs;
-		unsigned int count;
-	} enc, dec;
-};
-
 struct cipher_test_suite {
 	const struct cipher_testvec *vecs;
 	unsigned int count;
-};
-
-struct comp_test_suite {
-	struct {
-		const struct comp_testvec *vecs;
-		unsigned int count;
-	} comp, decomp;
 };
 
 struct hash_test_suite {
@@ -93,14 +76,12 @@ struct hash_test_suite {
 	unsigned int count;
 };
 
-struct cprng_test_suite {
-	const struct cprng_testvec *vecs;
-	unsigned int count;
-};
-
-struct drbg_test_suite {
-	const struct drbg_testvec *vecs;
-	unsigned int count;
+#if 0
+struct aead_test_suite {
+	struct {
+		const struct aead_testvec *vecs;
+		unsigned int count;
+	} enc, dec;
 };
 
 struct akcipher_test_suite {
@@ -108,7 +89,6 @@ struct akcipher_test_suite {
 	unsigned int count;
 };
 
-#if 0
 struct kpp_test_suite {
 	const struct kpp_testvec *vecs;
 	unsigned int count;
@@ -122,14 +102,11 @@ struct alg_test_desc {
 	int fips_allowed;	/* set if alg is allowed in fips mode */
 
 	union {
-		struct aead_test_suite aead;
 		struct cipher_test_suite cipher;
-		struct comp_test_suite comp;
 		struct hash_test_suite hash;
-		struct cprng_test_suite cprng;
-		struct drbg_test_suite drbg;
-		struct akcipher_test_suite akcipher;
 #if 0
+		struct aead_test_suite aead;
+		struct akcipher_test_suite akcipher;
 		struct kpp_test_suite kpp;
 #endif
 	} suite;
@@ -1376,343 +1353,6 @@ static int test_skcipher(struct crypto_skcipher *tfm, int enc,
 }
 
 #if 0
-static int test_comp(struct crypto_comp *tfm,
-		     const struct comp_testvec *ctemplate,
-		     const struct comp_testvec *dtemplate,
-		     int ctcount, int dtcount)
-{
-	const char *algo = crypto_tfm_alg_driver_name(crypto_comp_tfm(tfm));
-	char *output, *decomp_output;
-	unsigned int i;
-	int ret;
-
-	output = kmalloc(COMP_BUF_SIZE, GFP_KERNEL);
-	if (!output)
-		return -ENOMEM;
-
-	decomp_output = kmalloc(COMP_BUF_SIZE, GFP_KERNEL);
-	if (!decomp_output) {
-		kfree(output);
-		return -ENOMEM;
-	}
-
-	for (i = 0; i < ctcount; i++) {
-		int ilen;
-		unsigned int dlen = COMP_BUF_SIZE;
-
-		memset(output, 0, sizeof(COMP_BUF_SIZE));
-		memset(decomp_output, 0, sizeof(COMP_BUF_SIZE));
-
-		ilen = ctemplate[i].inlen;
-		ret = crypto_comp_compress(tfm, ctemplate[i].input,
-					   ilen, output, &dlen);
-		if (ret) {
-			printk(KERN_ERR "gost-alg: comp: compression failed "
-			       "on test %d for %s: ret=%d\n", i + 1, algo,
-			       -ret);
-			goto out;
-		}
-
-		ilen = dlen;
-		dlen = COMP_BUF_SIZE;
-		ret = crypto_comp_decompress(tfm, output,
-					     ilen, decomp_output, &dlen);
-		if (ret) {
-			pr_err("gost-alg: comp: compression failed: decompress: on test %d for %s failed: ret=%d\n",
-			       i + 1, algo, -ret);
-			goto out;
-		}
-
-		if (dlen != ctemplate[i].inlen) {
-			printk(KERN_ERR "gost-alg: comp: Compression test %d "
-			       "failed for %s: output len = %d\n", i + 1, algo,
-			       dlen);
-			ret = -EINVAL;
-			goto out;
-		}
-
-		if (memcmp(decomp_output, ctemplate[i].input,
-			   ctemplate[i].inlen)) {
-			pr_err("gost-alg: comp: compression failed: output differs: on test %d for %s\n",
-			       i + 1, algo);
-			hexdump(decomp_output, dlen);
-			ret = -EINVAL;
-			goto out;
-		}
-	}
-
-	for (i = 0; i < dtcount; i++) {
-		int ilen;
-		unsigned int dlen = COMP_BUF_SIZE;
-
-		memset(decomp_output, 0, sizeof(COMP_BUF_SIZE));
-
-		ilen = dtemplate[i].inlen;
-		ret = crypto_comp_decompress(tfm, dtemplate[i].input,
-					     ilen, decomp_output, &dlen);
-		if (ret) {
-			printk(KERN_ERR "gost-alg: comp: decompression failed "
-			       "on test %d for %s: ret=%d\n", i + 1, algo,
-			       -ret);
-			goto out;
-		}
-
-		if (dlen != dtemplate[i].outlen) {
-			printk(KERN_ERR "gost-alg: comp: Decompression test %d "
-			       "failed for %s: output len = %d\n", i + 1, algo,
-			       dlen);
-			ret = -EINVAL;
-			goto out;
-		}
-
-		if (memcmp(decomp_output, dtemplate[i].output, dlen)) {
-			printk(KERN_ERR "gost-alg: comp: Decompression test %d "
-			       "failed for %s\n", i + 1, algo);
-			hexdump(decomp_output, dlen);
-			ret = -EINVAL;
-			goto out;
-		}
-	}
-
-	ret = 0;
-
-out:
-	kfree(decomp_output);
-	kfree(output);
-	return ret;
-}
-
-static int test_acomp(struct crypto_acomp *tfm,
-			      const struct comp_testvec *ctemplate,
-		      const struct comp_testvec *dtemplate,
-		      int ctcount, int dtcount)
-{
-	const char *algo = crypto_tfm_alg_driver_name(crypto_acomp_tfm(tfm));
-	unsigned int i;
-	char *output, *decomp_out;
-	int ret;
-	struct scatterlist src, dst;
-	struct acomp_req *req;
-	struct crypto_wait wait;
-
-	output = kmalloc(COMP_BUF_SIZE, GFP_KERNEL);
-	if (!output)
-		return -ENOMEM;
-
-	decomp_out = kmalloc(COMP_BUF_SIZE, GFP_KERNEL);
-	if (!decomp_out) {
-		kfree(output);
-		return -ENOMEM;
-	}
-
-	for (i = 0; i < ctcount; i++) {
-		unsigned int dlen = COMP_BUF_SIZE;
-		int ilen = ctemplate[i].inlen;
-		void *input_vec;
-
-		input_vec = kmemdup(ctemplate[i].input, ilen, GFP_KERNEL);
-		if (!input_vec) {
-			ret = -ENOMEM;
-			goto out;
-		}
-
-		memset(output, 0, dlen);
-		crypto_init_wait(&wait);
-		sg_init_one(&src, input_vec, ilen);
-		sg_init_one(&dst, output, dlen);
-
-		req = acomp_request_alloc(tfm);
-		if (!req) {
-			pr_err("gost-alg: acomp: request alloc failed for %s\n",
-			       algo);
-			kfree(input_vec);
-			ret = -ENOMEM;
-			goto out;
-		}
-
-		acomp_request_set_params(req, &src, &dst, ilen, dlen);
-		acomp_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
-					   crypto_req_done, &wait);
-
-		ret = crypto_wait_req(crypto_acomp_compress(req), &wait);
-		if (ret) {
-			pr_err("gost-alg: acomp: compression failed on test %d for %s: ret=%d\n",
-			       i + 1, algo, -ret);
-			kfree(input_vec);
-			acomp_request_free(req);
-			goto out;
-		}
-
-		ilen = req->dlen;
-		dlen = COMP_BUF_SIZE;
-		sg_init_one(&src, output, ilen);
-		sg_init_one(&dst, decomp_out, dlen);
-		crypto_init_wait(&wait);
-		acomp_request_set_params(req, &src, &dst, ilen, dlen);
-
-		ret = crypto_wait_req(crypto_acomp_decompress(req), &wait);
-		if (ret) {
-			pr_err("gost-alg: acomp: compression failed on test %d for %s: ret=%d\n",
-			       i + 1, algo, -ret);
-			kfree(input_vec);
-			acomp_request_free(req);
-			goto out;
-		}
-
-		if (req->dlen != ctemplate[i].inlen) {
-			pr_err("gost-alg: acomp: Compression test %d failed for %s: output len = %d\n",
-			       i + 1, algo, req->dlen);
-			ret = -EINVAL;
-			kfree(input_vec);
-			acomp_request_free(req);
-			goto out;
-		}
-
-		if (memcmp(input_vec, decomp_out, req->dlen)) {
-			pr_err("gost-alg: acomp: Compression test %d failed for %s\n",
-			       i + 1, algo);
-			hexdump(output, req->dlen);
-			ret = -EINVAL;
-			kfree(input_vec);
-			acomp_request_free(req);
-			goto out;
-		}
-
-		kfree(input_vec);
-		acomp_request_free(req);
-	}
-
-	for (i = 0; i < dtcount; i++) {
-		unsigned int dlen = COMP_BUF_SIZE;
-		int ilen = dtemplate[i].inlen;
-		void *input_vec;
-
-		input_vec = kmemdup(dtemplate[i].input, ilen, GFP_KERNEL);
-		if (!input_vec) {
-			ret = -ENOMEM;
-			goto out;
-		}
-
-		memset(output, 0, dlen);
-		crypto_init_wait(&wait);
-		sg_init_one(&src, input_vec, ilen);
-		sg_init_one(&dst, output, dlen);
-
-		req = acomp_request_alloc(tfm);
-		if (!req) {
-			pr_err("gost-alg: acomp: request alloc failed for %s\n",
-			       algo);
-			kfree(input_vec);
-			ret = -ENOMEM;
-			goto out;
-		}
-
-		acomp_request_set_params(req, &src, &dst, ilen, dlen);
-		acomp_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
-					   crypto_req_done, &wait);
-
-		ret = crypto_wait_req(crypto_acomp_decompress(req), &wait);
-		if (ret) {
-			pr_err("gost-alg: acomp: decompression failed on test %d for %s: ret=%d\n",
-			       i + 1, algo, -ret);
-			kfree(input_vec);
-			acomp_request_free(req);
-			goto out;
-		}
-
-		if (req->dlen != dtemplate[i].outlen) {
-			pr_err("gost-alg: acomp: Decompression test %d failed for %s: output len = %d\n",
-			       i + 1, algo, req->dlen);
-			ret = -EINVAL;
-			kfree(input_vec);
-			acomp_request_free(req);
-			goto out;
-		}
-
-		if (memcmp(output, dtemplate[i].output, req->dlen)) {
-			pr_err("gost-alg: acomp: Decompression test %d failed for %s\n",
-			       i + 1, algo);
-			hexdump(output, req->dlen);
-			ret = -EINVAL;
-			kfree(input_vec);
-			acomp_request_free(req);
-			goto out;
-		}
-
-		kfree(input_vec);
-		acomp_request_free(req);
-	}
-
-	ret = 0;
-
-out:
-	kfree(decomp_out);
-	kfree(output);
-	return ret;
-}
-
-static int test_cprng(struct crypto_rng *tfm,
-		      const struct cprng_testvec *template,
-		      unsigned int tcount)
-{
-	const char *algo = crypto_tfm_alg_driver_name(crypto_rng_tfm(tfm));
-	int err = 0, i, j, seedsize;
-	u8 *seed;
-	char result[32];
-
-	seedsize = crypto_rng_seedsize(tfm);
-
-	seed = kmalloc(seedsize, GFP_KERNEL);
-	if (!seed) {
-		printk(KERN_ERR "gost-alg: cprng: Failed to allocate seed space "
-		       "for %s\n", algo);
-		return -ENOMEM;
-	}
-
-	for (i = 0; i < tcount; i++) {
-		memset(result, 0, 32);
-
-		memcpy(seed, template[i].v, template[i].vlen);
-		memcpy(seed + template[i].vlen, template[i].key,
-		       template[i].klen);
-		memcpy(seed + template[i].vlen + template[i].klen,
-		       template[i].dt, template[i].dtlen);
-
-		err = crypto_rng_reset(tfm, seed, seedsize);
-		if (err) {
-			printk(KERN_ERR "gost-alg: cprng: Failed to reset rng "
-			       "for %s\n", algo);
-			goto out;
-		}
-
-		for (j = 0; j < template[i].loops; j++) {
-			err = crypto_rng_get_bytes(tfm, result,
-						   template[i].rlen);
-			if (err < 0) {
-				printk(KERN_ERR "gost-alg: cprng: Failed to obtain "
-				       "the correct amount of random data for "
-				       "%s (requested %d)\n", algo,
-				       template[i].rlen);
-				goto out;
-			}
-		}
-
-		err = memcmp(result, template[i].result,
-			     template[i].rlen);
-		if (err) {
-			printk(KERN_ERR "gost-alg: cprng: Test %d failed for %s\n",
-			       i, algo);
-			hexdump(result, template[i].rlen);
-			err = -EINVAL;
-			goto out;
-		}
-	}
-
-out:
-	kfree(seed);
-	return err;
-}
-
 static int alg_test_aead(const struct alg_test_desc *desc, const char *driver,
 			 u32 type, u32 mask)
 {
@@ -1787,46 +1427,6 @@ static int alg_test_skcipher(const struct alg_test_desc *desc,
 	return err;
 }
 
-#if 0
-static int alg_test_comp(const struct alg_test_desc *desc, const char *driver,
-			 u32 type, u32 mask)
-{
-	struct crypto_comp *comp;
-	struct crypto_acomp *acomp;
-	int err;
-	u32 algo_type = type & CRYPTO_ALG_TYPE_ACOMPRESS_MASK;
-
-	if (algo_type == CRYPTO_ALG_TYPE_ACOMPRESS) {
-		acomp = crypto_alloc_acomp(driver, type, mask);
-		if (IS_ERR(acomp)) {
-			pr_err("gost-alg: acomp: Failed to load transform for %s: %ld\n",
-			       driver, PTR_ERR(acomp));
-			return PTR_ERR(acomp);
-		}
-		err = test_acomp(acomp, desc->suite.comp.comp.vecs,
-				 desc->suite.comp.decomp.vecs,
-				 desc->suite.comp.comp.count,
-				 desc->suite.comp.decomp.count);
-		crypto_free_acomp(acomp);
-	} else {
-		comp = crypto_alloc_comp(driver, type, mask);
-		if (IS_ERR(comp)) {
-			pr_err("gost-alg: comp: Failed to load transform for %s: %ld\n",
-			       driver, PTR_ERR(comp));
-			return PTR_ERR(comp);
-		}
-
-		err = test_comp(comp, desc->suite.comp.comp.vecs,
-				desc->suite.comp.decomp.vecs,
-				desc->suite.comp.comp.count,
-				desc->suite.comp.decomp.count);
-
-		crypto_free_comp(comp);
-	}
-	return err;
-}
-#endif
-
 static int __alg_test_hash(const struct hash_testvec *template,
 			   unsigned int tcount, const char *driver,
 			   u32 type, u32 mask)
@@ -1887,167 +1487,6 @@ static int alg_test_hash(const struct alg_test_desc *desc, const char *driver,
 }
 
 #if 0
-static int alg_test_crc32c(const struct alg_test_desc *desc,
-			   const char *driver, u32 type, u32 mask)
-{
-	struct crypto_shash *tfm;
-	u32 val;
-	int err;
-
-	err = alg_test_hash(desc, driver, type, mask);
-	if (err)
-		goto out;
-
-	tfm = crypto_alloc_shash(driver, type, mask);
-	if (IS_ERR(tfm)) {
-		printk(KERN_ERR "gost-alg: crc32c: Failed to load transform for %s: "
-		       "%ld\n", driver, PTR_ERR(tfm));
-		err = PTR_ERR(tfm);
-		goto out;
-	}
-
-	do {
-		SHASH_DESC_ON_STACK(shash, tfm);
-		u32 *ctx = (u32 *)shash_desc_ctx(shash);
-
-		shash->tfm = tfm;
-		shash->flags = 0;
-
-		*ctx = le32_to_cpu(420553207);
-		err = crypto_shash_final(shash, (u8 *)&val);
-		if (err) {
-			printk(KERN_ERR "gost-alg: crc32c: Operation failed for "
-			       "%s: %d\n", driver, err);
-			break;
-		}
-
-		if (val != ~420553207) {
-			printk(KERN_ERR "gost-alg: crc32c: Test failed for %s: "
-			       "%d\n", driver, val);
-			err = -EINVAL;
-		}
-	} while (0);
-
-	crypto_free_shash(tfm);
-
-out:
-	return err;
-}
-
-static int alg_test_cprng(const struct alg_test_desc *desc, const char *driver,
-			  u32 type, u32 mask)
-{
-	struct crypto_rng *rng;
-	int err;
-
-	rng = crypto_alloc_rng(driver, type, mask);
-	if (IS_ERR(rng)) {
-		printk(KERN_ERR "gost-alg: cprng: Failed to load transform for %s: "
-		       "%ld\n", driver, PTR_ERR(rng));
-		return PTR_ERR(rng);
-	}
-
-	err = test_cprng(rng, desc->suite.cprng.vecs, desc->suite.cprng.count);
-
-	crypto_free_rng(rng);
-
-	return err;
-}
-
-
-static int drbg_cavs_test(const struct drbg_testvec *test, int pr,
-			  const char *driver, u32 type, u32 mask)
-{
-	int ret = -EAGAIN;
-	struct crypto_rng *drng;
-	struct drbg_test_data test_data;
-	struct drbg_string addtl, pers, testentropy;
-	unsigned char *buf = kzalloc(test->expectedlen, GFP_KERNEL);
-
-	if (!buf)
-		return -ENOMEM;
-
-	drng = crypto_alloc_rng(driver, type, mask);
-	if (IS_ERR(drng)) {
-		printk(KERN_ERR "gost-alg: drbg: could not allocate DRNG handle for "
-		       "%s\n", driver);
-		kzfree(buf);
-		return -ENOMEM;
-	}
-
-	test_data.testentropy = &testentropy;
-	drbg_string_fill(&testentropy, test->entropy, test->entropylen);
-	drbg_string_fill(&pers, test->pers, test->perslen);
-	ret = crypto_drbg_reset_test(drng, &pers, &test_data);
-	if (ret) {
-		printk(KERN_ERR "gost-alg: drbg: Failed to reset rng\n");
-		goto outbuf;
-	}
-
-	drbg_string_fill(&addtl, test->addtla, test->addtllen);
-	if (pr) {
-		drbg_string_fill(&testentropy, test->entpra, test->entprlen);
-		ret = crypto_drbg_get_bytes_addtl_test(drng,
-			buf, test->expectedlen, &addtl,	&test_data);
-	} else {
-		ret = crypto_drbg_get_bytes_addtl(drng,
-			buf, test->expectedlen, &addtl);
-	}
-	if (ret < 0) {
-		printk(KERN_ERR "gost-alg: drbg: could not obtain random data for "
-		       "driver %s\n", driver);
-		goto outbuf;
-	}
-
-	drbg_string_fill(&addtl, test->addtlb, test->addtllen);
-	if (pr) {
-		drbg_string_fill(&testentropy, test->entprb, test->entprlen);
-		ret = crypto_drbg_get_bytes_addtl_test(drng,
-			buf, test->expectedlen, &addtl, &test_data);
-	} else {
-		ret = crypto_drbg_get_bytes_addtl(drng,
-			buf, test->expectedlen, &addtl);
-	}
-	if (ret < 0) {
-		printk(KERN_ERR "gost-alg: drbg: could not obtain random data for "
-		       "driver %s\n", driver);
-		goto outbuf;
-	}
-
-	ret = memcmp(test->expected, buf, test->expectedlen);
-
-outbuf:
-	crypto_free_rng(drng);
-	kzfree(buf);
-	return ret;
-}
-
-
-static int alg_test_drbg(const struct alg_test_desc *desc, const char *driver,
-			 u32 type, u32 mask)
-{
-	int err = 0;
-	int pr = 0;
-	int i = 0;
-	const struct drbg_testvec *template = desc->suite.drbg.vecs;
-	unsigned int tcount = desc->suite.drbg.count;
-
-	if (0 == memcmp(driver, "drbg_pr_", 8))
-		pr = 1;
-
-	for (i = 0; i < tcount; i++) {
-		err = drbg_cavs_test(&template[i], pr, driver, type, mask);
-		if (err) {
-			printk(KERN_ERR "gost-alg: drbg: Test %d failed for %s\n",
-			       i, driver);
-			err = -EINVAL;
-			break;
-		}
-	}
-	return err;
-
-}
-
 static int do_test_kpp(struct crypto_kpp *tfm, const struct kpp_testvec *vec,
 		       const char *alg)
 {
