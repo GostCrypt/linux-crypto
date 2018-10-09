@@ -1,6 +1,10 @@
 KSRC ?= /lib/modules/$(shell uname -r)/build
 
+ifeq ($(wildcard $(PWD)/streebog/*.c),)
+CONFIG_CRYPTO_STREEBOG ?= n
+else
 CONFIG_CRYPTO_STREEBOG ?= m
+endif
 
 obj-m :=
 obj-m += gost28147_generic.o
