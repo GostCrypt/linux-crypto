@@ -11,12 +11,22 @@
 
 #include <linux/crypto.h>
 #include <linux/module.h>
+#include <linux/version.h>
 #include <asm/unaligned.h>
 
 #include <crypto/algapi.h>
 #include <crypto/kuznyechik.h>
 
 #include "kuztable.h"
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 14, 0)
+static inline void crypto_xor_cpy(u8 *dst, const u8 *src1, const u8 *src2,
+				  unsigned int size)
+{
+	memcpy(dst, src1, size);
+	crypto_xor(dst, src2, size);
+}
+#endif
 
 #define KUZNYECHIK_SUBKEYS_SIZE (16 * 10)
 

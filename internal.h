@@ -99,6 +99,20 @@ unsigned int crypto_alg_extsize(struct crypto_alg *alg);
 int crypto_type_has_alg(const char *name, const struct crypto_type *frontend,
 			u32 type, u32 mask);
 
+#include <linux/version.h>
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 16, 0)
+static inline struct crypto_alg *crypto_alg_get(struct crypto_alg *alg)
+{
+	atomic_inc(&alg->cra_refcnt);
+	return alg;
+}
+
+static inline void crypto_alg_put(struct crypto_alg *alg)
+{
+	if (atomic_dec_and_test(&alg->cra_refcnt) && alg->cra_destroy)
+		alg->cra_destroy(alg);
+}
+#else
 static inline struct crypto_alg *crypto_alg_get(struct crypto_alg *alg)
 {
 	refcount_inc(&alg->cra_refcnt);
@@ -110,6 +124,7 @@ static inline void crypto_alg_put(struct crypto_alg *alg)
 	if (refcount_dec_and_test(&alg->cra_refcnt) && alg->cra_destroy)
 		alg->cra_destroy(alg);
 }
+#endif
 
 static inline int crypto_tmpl_get(struct crypto_template *tmpl)
 {

@@ -1,0 +1,14 @@
+language: c
+sudo:
+        required
+install:
+        sudo apt-get install linux-headers-`uname -r` ;
+script:
+        - make -j $(nproc) CONFIG_CRYPTO_STREEBOG=n
+        - sudo insmod ./gost28147_generic.ko
+        - sudo insmod ./gosthash94_generic.ko
+        - sudo insmod ./magma_generic.ko
+        - sudo insmod ./kuznyechik_generic.ko
+          #- sudo insmod ./streebog_generic.ko
+        - sudo insmod ./gost-test.ko
+        - dmesg
