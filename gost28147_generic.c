@@ -37,6 +37,7 @@
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/crypto.h>
+#include <linux/version.h>
 #include <asm/byteorder.h>
 #include <asm/unaligned.h>
 
@@ -2441,6 +2442,15 @@ static void gost28147_cfb_encrypt_one(struct crypto_skcipher *tfm,
 	put_unaligned_le32(block[1], dst + 4);
 	ctx->block_count++;
 }
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 14, 0)
+static inline void crypto_xor_cpy(u8 *dst, const u8 *src1, const u8 *src2,
+				  unsigned int size)
+{
+	memcpy(dst, src1, size);
+	crypto_xor(dst, src2, size);
+}
+#endif
 
 /* final encrypt and decrypt is the same */
 static void gost28147_cfb_final(struct skcipher_walk *walk,
