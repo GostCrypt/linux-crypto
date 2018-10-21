@@ -54,6 +54,7 @@ struct crypto_gost28147_cfb_ctx {
 struct crypto_gost28147imit_desc_ctx {
 	const u32 *sbox;
 	int key_meshing;
+	unsigned int block_count;
 	u32 key[GOST28147IMIT_KEY_SIZE/4];
 	u32 state[GOST28147IMIT_BLOCK_SIZE/4];
 	u32 count;
@@ -2604,6 +2605,7 @@ static int gost28147imit_init(struct shash_desc *desc, const struct gost28147_pa
 	ctx->count = 0;
 	ctx->sbox = param->sbox;
 	ctx->key_meshing = param->key_meshing;
+	ctx->block_count = 0;
 	memcpy(ctx->key, tfm_ctx->key, sizeof(ctx->key));
 
 	return 0;
@@ -2676,10 +2678,16 @@ static void gost28147_imit_compress(struct crypto_gost28147imit_desc_ctx *ctx,
 	u32 block[2];
 	unsigned int i;
 
-	for (i = 0; i < blocks; i++, data += 8) {
+	for (i = 0; i < blocks; i++, data += GOST28147IMIT_BLOCK_SIZE) {
+		if (ctx->key_meshing && ctx->block_count == 1024 / GOST28147IMIT_BLOCK_SIZE) {
+			gost28147_key_mesh_cryptopro(ctx->key, ctx->sbox);
+			ctx->block_count = 0;
+		}
+
 		block[0] = get_unaligned_le32(data + 0) ^ ctx->state[0];
 		block[1] = get_unaligned_le32(data + 4) ^ ctx->state[1];
 		gost28147_imit_simple(ctx->key, ctx->sbox, block, ctx->state);
+		ctx->block_count++;
 	}
 }
 
@@ -2718,17 +2726,21 @@ static int gost28147imit_update(struct shash_desc *desc, const u8 *data, unsigne
 	return 0;
 }
 
+const u8 zero_block_block[GOST28147IMIT_BLOCK_SIZE] = { 0 };
+
 static int gost28147imit_final(struct shash_desc *desc, u8 *out)
 {
 	struct crypto_gost28147imit_desc_ctx *sctx = shash_desc_ctx(desc);
-	const uint8_t zero[GOST28147IMIT_BLOCK_SIZE] = { 0 };
 	unsigned int partial = sctx->count % GOST28147IMIT_BLOCK_SIZE;
 
-	if (partial)
-		gost28147imit_update(desc, zero, GOST28147IMIT_BLOCK_SIZE - partial);
+	if (partial) {
+		memset(sctx->buffer + partial, 0, GOST28147IMIT_BLOCK_SIZE - partial);
+		sctx->count += GOST28147IMIT_BLOCK_SIZE - partial;
+		gost28147_imit_compress(sctx, sctx->buffer, 1);
+	}
 
 	if (sctx->count == GOST28147IMIT_BLOCK_SIZE)
-		gost28147imit_update(desc, zero, GOST28147IMIT_BLOCK_SIZE);
+		gost28147_imit_compress(sctx, zero_block_block, 1);
 
 	put_unaligned_le32(sctx->state[0], out);
 
