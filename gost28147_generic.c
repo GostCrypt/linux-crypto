@@ -2409,6 +2409,12 @@ static int gost28147_cfb_setkey(struct crypto_skcipher *tfm, const u8 *key,
 			key, len, param);
 }
 
+static int gost28147_cfb_setkey_tc26z(struct crypto_skcipher *tfm, const u8 *key,
+		unsigned int len)
+{
+	return gost28147_cfb_setkey(tfm, key, len, &gost28147_param_TC26_Z);
+}
+
 static int gost28147_cfb_setkey_cpa(struct crypto_skcipher *tfm, const u8 *key,
 		unsigned int len)
 {
@@ -2416,6 +2422,18 @@ static int gost28147_cfb_setkey_cpa(struct crypto_skcipher *tfm, const u8 *key,
 }
 
 static int gost28147_cfb_setkey_cpb(struct crypto_skcipher *tfm, const u8 *key,
+		unsigned int len)
+{
+	return gost28147_cfb_setkey(tfm, key, len, &gost28147_param_CryptoPro_B);
+}
+
+static int gost28147_cfb_setkey_cpc(struct crypto_skcipher *tfm, const u8 *key,
+		unsigned int len)
+{
+	return gost28147_cfb_setkey(tfm, key, len, &gost28147_param_CryptoPro_B);
+}
+
+static int gost28147_cfb_setkey_cpd(struct crypto_skcipher *tfm, const u8 *key,
 		unsigned int len)
 {
 	return gost28147_cfb_setkey(tfm, key, len, &gost28147_param_CryptoPro_B);
@@ -2847,6 +2865,22 @@ static struct skcipher_alg gost28147_mode_algs[] = { {
 	.max_keysize	= GOST28147_KEY_SIZE,
 	.ivsize		= GOST28147_IV_SIZE,
 	.chunksize	= GOST28147_BLOCK_SIZE,
+	.setkey		= gost28147_cfb_setkey_tc26z,
+	.encrypt	= gost28147_cfb_encrypt,
+	.decrypt	= gost28147_cfb_decrypt,
+	.base		= {
+		.cra_name	=	"cfb(gost28147-tc26z)",
+		.cra_driver_name =	"cfb-gost28147-tc26z-generic",
+		.cra_priority	=	100,
+		.cra_blocksize	=	1,
+		.cra_ctxsize	=	sizeof(struct crypto_gost28147_cfb_ctx),
+		.cra_module	=	THIS_MODULE,
+	}
+}, {
+	.min_keysize	= GOST28147_KEY_SIZE,
+	.max_keysize	= GOST28147_KEY_SIZE,
+	.ivsize		= GOST28147_IV_SIZE,
+	.chunksize	= GOST28147_BLOCK_SIZE,
 	.setkey		= gost28147_cfb_setkey_cpa,
 	.encrypt	= gost28147_cfb_encrypt,
 	.decrypt	= gost28147_cfb_decrypt,
@@ -2869,6 +2903,38 @@ static struct skcipher_alg gost28147_mode_algs[] = { {
 	.base		= {
 		.cra_name	=	"cfb(gost28147-cpb)",
 		.cra_driver_name =	"cfb-gost28147-cpb-generic",
+		.cra_priority	=	100,
+		.cra_blocksize	=	1,
+		.cra_ctxsize	=	sizeof(struct crypto_gost28147_cfb_ctx),
+		.cra_module	=	THIS_MODULE,
+	}
+}, {
+	.min_keysize	= GOST28147_KEY_SIZE,
+	.max_keysize	= GOST28147_KEY_SIZE,
+	.ivsize		= GOST28147_IV_SIZE,
+	.chunksize	= GOST28147_BLOCK_SIZE,
+	.setkey		= gost28147_cfb_setkey_cpc,
+	.encrypt	= gost28147_cfb_encrypt,
+	.decrypt	= gost28147_cfb_decrypt,
+	.base		= {
+		.cra_name	=	"cfb(gost28147-cpc)",
+		.cra_driver_name =	"cfb-gost28147-cpc-generic",
+		.cra_priority	=	100,
+		.cra_blocksize	=	1,
+		.cra_ctxsize	=	sizeof(struct crypto_gost28147_cfb_ctx),
+		.cra_module	=	THIS_MODULE,
+	}
+}, {
+	.min_keysize	= GOST28147_KEY_SIZE,
+	.max_keysize	= GOST28147_KEY_SIZE,
+	.ivsize		= GOST28147_IV_SIZE,
+	.chunksize	= GOST28147_BLOCK_SIZE,
+	.setkey		= gost28147_cfb_setkey_cpd,
+	.encrypt	= gost28147_cfb_encrypt,
+	.decrypt	= gost28147_cfb_decrypt,
+	.base		= {
+		.cra_name	=	"cfb(gost28147-cpd)",
+		.cra_driver_name =	"cfb-gost28147-cpd-generic",
 		.cra_priority	=	100,
 		.cra_blocksize	=	1,
 		.cra_ctxsize	=	sizeof(struct crypto_gost28147_cfb_ctx),
