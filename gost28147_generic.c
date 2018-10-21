@@ -2446,16 +2446,14 @@ static void gost28147_cfb_encrypt_one(struct crypto_skcipher *tfm,
 static void gost28147_cfb_final(struct skcipher_walk *walk,
 			     struct crypto_skcipher *tfm)
 {
-	const unsigned long alignmask = crypto_skcipher_alignmask(tfm);
-	u8 tmp[MAX_CIPHER_BLOCKSIZE + MAX_CIPHER_ALIGNMASK];
-	u8 *stream = PTR_ALIGN(tmp + 0, alignmask + 1);
+	u8 tmp[GOST28147_BLOCK_SIZE];
 	u8 *src = walk->src.virt.addr;
 	u8 *dst = walk->dst.virt.addr;
 	u8 *iv = walk->iv;
 	unsigned int nbytes = walk->nbytes;
 
-	gost28147_cfb_encrypt_one(tfm, iv, stream);
-	crypto_xor_cpy(dst, stream, src, nbytes);
+	gost28147_cfb_encrypt_one(tfm, iv, tmp);
+	crypto_xor_cpy(dst, tmp, src, nbytes);
 }
 
 static int gost28147_cfb_encrypt_segment(struct skcipher_walk *walk,
@@ -2486,7 +2484,7 @@ static int gost28147_cfb_encrypt_inplace(struct skcipher_walk *walk,
 	unsigned int nbytes = walk->nbytes;
 	u8 *src = walk->src.virt.addr;
 	u8 *iv = walk->iv;
-	u8 tmp[MAX_CIPHER_BLOCKSIZE];
+	u8 tmp[GOST28147_BLOCK_SIZE];
 
 	do {
 		gost28147_cfb_encrypt_one(tfm, iv, tmp);
@@ -2556,7 +2554,7 @@ static int gost28147_cfb_decrypt_inplace(struct skcipher_walk *walk,
 	unsigned int nbytes = walk->nbytes;
 	u8 *src = walk->src.virt.addr;
 	u8 *iv = walk->iv;
-	u8 tmp[MAX_CIPHER_BLOCKSIZE];
+	u8 tmp[GOST28147_BLOCK_SIZE];
 
 	do {
 		gost28147_cfb_encrypt_one(tfm, iv, tmp);
