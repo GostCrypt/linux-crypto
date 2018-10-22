@@ -306,13 +306,13 @@ static int gost28147_cfb_setkey_cpb(struct crypto_skcipher *tfm, const u8 *key,
 static int gost28147_cfb_setkey_cpc(struct crypto_skcipher *tfm, const u8 *key,
 		unsigned int len)
 {
-	return gost28147_cfb_setkey(tfm, key, len, &gost28147_param_CryptoPro_B);
+	return gost28147_cfb_setkey(tfm, key, len, &gost28147_param_CryptoPro_C);
 }
 
 static int gost28147_cfb_setkey_cpd(struct crypto_skcipher *tfm, const u8 *key,
 		unsigned int len)
 {
-	return gost28147_cfb_setkey(tfm, key, len, &gost28147_param_CryptoPro_B);
+	return gost28147_cfb_setkey(tfm, key, len, &gost28147_param_CryptoPro_D);
 }
 
 static void gost28147_cfb_encrypt_one(struct crypto_skcipher *tfm,
