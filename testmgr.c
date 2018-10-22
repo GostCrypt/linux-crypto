@@ -1895,6 +1895,41 @@ static const struct alg_test_desc alg_test_descs[] = {
 		}
 	},
 	{
+		.alg = "cnt(gost28147-cpa)",
+		.test = alg_test_skcipher,
+		.suite = {
+			.cipher = __VECS(gost28147_cpa_cnt_tv_template)
+		}
+	},
+	{
+		.alg = "cnt(gost28147-cpb)",
+		.test = alg_test_skcipher,
+		.suite = {
+			.cipher = __VECS(gost28147_cpb_cnt_tv_template)
+		}
+	},
+	{
+		.alg = "cnt(gost28147-cpc)",
+		.test = alg_test_skcipher,
+		.suite = {
+			.cipher = __VECS(gost28147_cpc_cnt_tv_template)
+		}
+	},
+	{
+		.alg = "cnt(gost28147-cpd)",
+		.test = alg_test_skcipher,
+		.suite = {
+			.cipher = __VECS(gost28147_cpd_cnt_tv_template)
+		}
+	},
+	{
+		.alg = "cnt(gost28147-tc26z)",
+		.test = alg_test_skcipher,
+		.suite = {
+			.cipher = __VECS(gost28147_tc26z_cnt_tv_template)
+		}
+	},
+	{
 		.alg = "ecb(gost28147-cpa)",
 		.test = alg_test_skcipher,
 		.suite = {
