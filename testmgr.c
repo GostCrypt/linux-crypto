@@ -1851,11 +1851,33 @@ static const struct alg_test_desc alg_test_descs[] = {
 		.suite = {
 			.cipher = __VECS(gost28147_cpa_cfb_tv_template)
 		}
-	}, {
+	},
+	{
 		.alg = "cfb(gost28147-cpb)",
 		.test = alg_test_skcipher,
 		.suite = {
 			.cipher = __VECS(gost28147_cpb_cfb_tv_template)
+		}
+	},
+	{
+		.alg = "cfb(gost28147-cpc)",
+		.test = alg_test_skcipher,
+		.suite = {
+			.cipher = __VECS(gost28147_cpc_cfb_tv_template)
+		}
+	},
+	{
+		.alg = "cfb(gost28147-cpd)",
+		.test = alg_test_skcipher,
+		.suite = {
+			.cipher = __VECS(gost28147_cpd_cfb_tv_template)
+		}
+	},
+	{
+		.alg = "cfb(gost28147-tc26z)",
+		.test = alg_test_skcipher,
+		.suite = {
+			.cipher = __VECS(gost28147_tc26z_cfb_tv_template)
 		}
 	},
 	{
