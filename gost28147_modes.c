@@ -47,11 +47,19 @@ struct crypto_gost28147_mode_ctx {
 	unsigned int block_count;
 };
 
+static void hexdump(unsigned char *buf, unsigned int len)
+{
+	print_hex_dump(KERN_CONT, "", DUMP_PREFIX_OFFSET,
+			16, 1,
+			buf, len, false);
+}
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 14, 0)
 static inline void crypto_xor_cpy(u8 *dst, const u8 *src1, const u8 *src2,
 				  unsigned int size)
 {
 	memcpy(dst, src1, size);
+	hexdump(dst, nbytes);
 	crypto_xor(dst, src2, size);
 }
 #endif
@@ -125,13 +133,6 @@ static void gost28147_cfb_encrypt_one(struct crypto_gost28147_mode_ctx *ctx,
 	ctx->block_count++;
 }
 
-static void hexdump(unsigned char *buf, unsigned int len)
-{
-	print_hex_dump(KERN_CONT, "", DUMP_PREFIX_OFFSET,
-			16, 1,
-			buf, len, false);
-}
-
 /* final encrypt and decrypt is the same */
 static void gost28147_cfb_final(struct skcipher_walk *walk,
 		struct crypto_gost28147_mode_ctx *ctx)
@@ -145,6 +146,7 @@ static void gost28147_cfb_final(struct skcipher_walk *walk,
 	gost28147_cfb_encrypt_one(ctx, iv, tmp);
 	crypto_xor_cpy(dst, tmp, src, nbytes);
 	pr_info("Final %d\n", nbytes);
+	hexdump(tmp, nbytes);
 	hexdump(dst, nbytes);
 }
 
