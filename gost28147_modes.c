@@ -104,10 +104,9 @@ static int gost28147_mode_setkey_cpd(struct crypto_skcipher *tfm, const u8 *key,
 	return gost28147_mode_setkey(tfm, key, len, &gost28147_param_CryptoPro_D);
 }
 
-static void gost28147_cfb_encrypt_one(struct crypto_skcipher *tfm,
+static void gost28147_cfb_encrypt_one(struct crypto_gost28147_mode_ctx *ctx,
 		u8 *src, u8 *dst)
 {
-	struct crypto_gost28147_mode_ctx *ctx = crypto_skcipher_ctx(tfm);
 	u32 *kp = ctx->ctx.key;
 	const u32 *sbox = ctx->ctx.sbox;
 	u32 block[2];
@@ -128,7 +127,7 @@ static void gost28147_cfb_encrypt_one(struct crypto_skcipher *tfm,
 
 /* final encrypt and decrypt is the same */
 static void gost28147_cfb_final(struct skcipher_walk *walk,
-			     struct crypto_skcipher *tfm)
+		struct crypto_gost28147_mode_ctx *ctx)
 {
 	u8 tmp[GOST28147_BLOCK_SIZE];
 	u8 *src = walk->src.virt.addr;
@@ -136,12 +135,12 @@ static void gost28147_cfb_final(struct skcipher_walk *walk,
 	u8 *iv = walk->iv;
 	unsigned int nbytes = walk->nbytes;
 
-	gost28147_cfb_encrypt_one(tfm, iv, tmp);
+	gost28147_cfb_encrypt_one(ctx, iv, tmp);
 	crypto_xor_cpy(dst, tmp, src, nbytes);
 }
 
 static int gost28147_cfb_encrypt_segment(struct skcipher_walk *walk,
-				      struct crypto_skcipher *tfm)
+		struct crypto_gost28147_mode_ctx *ctx)
 {
 	const unsigned int bsize = GOST28147_BLOCK_SIZE;
 	unsigned int nbytes = walk->nbytes;
@@ -150,7 +149,7 @@ static int gost28147_cfb_encrypt_segment(struct skcipher_walk *walk,
 	u8 *iv = walk->iv;
 
 	do {
-		gost28147_cfb_encrypt_one(tfm, iv, dst);
+		gost28147_cfb_encrypt_one(ctx, iv, dst);
 		crypto_xor(dst, src, bsize);
 		memcpy(iv, dst, bsize);
 
@@ -162,7 +161,7 @@ static int gost28147_cfb_encrypt_segment(struct skcipher_walk *walk,
 }
 
 static int gost28147_cfb_encrypt_inplace(struct skcipher_walk *walk,
-				      struct crypto_skcipher *tfm)
+		struct crypto_gost28147_mode_ctx *ctx)
 {
 	const unsigned int bsize = GOST28147_BLOCK_SIZE;
 	unsigned int nbytes = walk->nbytes;
@@ -171,7 +170,7 @@ static int gost28147_cfb_encrypt_inplace(struct skcipher_walk *walk,
 	u8 tmp[GOST28147_BLOCK_SIZE];
 
 	do {
-		gost28147_cfb_encrypt_one(tfm, iv, tmp);
+		gost28147_cfb_encrypt_one(ctx, iv, tmp);
 		crypto_xor(src, tmp, bsize);
 		iv = src;
 
@@ -187,6 +186,7 @@ static int gost28147_cfb_encrypt_inplace(struct skcipher_walk *walk,
 static int gost28147_cfb_encrypt(struct skcipher_request *req)
 {
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
+	struct crypto_gost28147_mode_ctx *ctx = crypto_skcipher_ctx(tfm);
 	struct skcipher_walk walk;
 	unsigned int bsize = GOST28147_BLOCK_SIZE;
 	int err;
@@ -195,14 +195,14 @@ static int gost28147_cfb_encrypt(struct skcipher_request *req)
 
 	while (walk.nbytes >= bsize) {
 		if (walk.src.virt.addr == walk.dst.virt.addr)
-			err = gost28147_cfb_encrypt_inplace(&walk, tfm);
+			err = gost28147_cfb_encrypt_inplace(&walk, ctx);
 		else
-			err = gost28147_cfb_encrypt_segment(&walk, tfm);
+			err = gost28147_cfb_encrypt_segment(&walk, ctx);
 		err = skcipher_walk_done(&walk, err);
 	}
 
 	if (walk.nbytes) {
-		gost28147_cfb_final(&walk, tfm);
+		gost28147_cfb_final(&walk, ctx);
 		err = skcipher_walk_done(&walk, 0);
 	}
 
@@ -212,7 +212,7 @@ static int gost28147_cfb_encrypt(struct skcipher_request *req)
 static int gost28147_cfb_encrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
 			 struct scatterlist *src, unsigned int nbytes)
 {
-	struct crypto_tfm *tfm = &desc->tfm->base;
+	struct crypto_gost28147_mode_ctx *ctx = crypto_blkcipher_ctx(desc->tfm);
 	struct blkcipher_walk walk;
 	unsigned int bsize = GOST28147_BLOCK_SIZE;
 	int err;
@@ -222,14 +222,14 @@ static int gost28147_cfb_encrypt(struct blkcipher_desc *desc, struct scatterlist
 
 	while (walk.nbytes >= bsize) {
 		if (walk.src.virt.addr == walk.dst.virt.addr)
-			err = gost28147_cfb_encrypt_inplace(&walk, tfm);
+			err = gost28147_cfb_encrypt_inplace(&walk, ctx);
 		else
-			err = gost28147_cfb_encrypt_segment(&walk, tfm);
+			err = gost28147_cfb_encrypt_segment(&walk, ctx);
 		err = blkcipher_walk_done(desc, &walk, err);
 	}
 
 	if (walk.nbytes) {
-		gost28147_cfb_final(&walk, tfm);
+		gost28147_cfb_final(&walk, ctx);
 		err = blkcipher_walk_done(desc, &walk, 0);
 	}
 
@@ -238,7 +238,7 @@ static int gost28147_cfb_encrypt(struct blkcipher_desc *desc, struct scatterlist
 #endif
 
 static int gost28147_cfb_decrypt_segment(struct skcipher_walk *walk,
-				      struct crypto_skcipher *tfm)
+		struct crypto_gost28147_mode_ctx *ctx)
 {
 	const unsigned int bsize = GOST28147_BLOCK_SIZE;
 	unsigned int nbytes = walk->nbytes;
@@ -247,7 +247,7 @@ static int gost28147_cfb_decrypt_segment(struct skcipher_walk *walk,
 	u8 *iv = walk->iv;
 
 	do {
-		gost28147_cfb_encrypt_one(tfm, iv, dst);
+		gost28147_cfb_encrypt_one(ctx, iv, dst);
 		crypto_xor(dst, src, bsize);
 		iv = src;
 
@@ -261,7 +261,7 @@ static int gost28147_cfb_decrypt_segment(struct skcipher_walk *walk,
 }
 
 static int gost28147_cfb_decrypt_inplace(struct skcipher_walk *walk,
-				      struct crypto_skcipher *tfm)
+		struct crypto_gost28147_mode_ctx *ctx)
 {
 	const unsigned int bsize = GOST28147_BLOCK_SIZE;
 	unsigned int nbytes = walk->nbytes;
@@ -270,7 +270,7 @@ static int gost28147_cfb_decrypt_inplace(struct skcipher_walk *walk,
 	u8 tmp[GOST28147_BLOCK_SIZE];
 
 	do {
-		gost28147_cfb_encrypt_one(tfm, iv, tmp);
+		gost28147_cfb_encrypt_one(ctx, iv, tmp);
 		memcpy(iv, src, bsize);
 		crypto_xor(src, tmp, bsize);
 		src += bsize;
@@ -285,6 +285,7 @@ static int gost28147_cfb_decrypt_inplace(struct skcipher_walk *walk,
 static int gost28147_cfb_decrypt(struct skcipher_request *req)
 {
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
+	struct crypto_gost28147_mode_ctx *ctx = crypto_skcipher_ctx(tfm);
 	struct skcipher_walk walk;
 	const unsigned int bsize = GOST28147_BLOCK_SIZE;
 	int err;
@@ -293,14 +294,14 @@ static int gost28147_cfb_decrypt(struct skcipher_request *req)
 
 	while (walk.nbytes >= bsize) {
 		if (walk.src.virt.addr == walk.dst.virt.addr)
-			err = gost28147_cfb_decrypt_inplace(&walk, tfm);
+			err = gost28147_cfb_decrypt_inplace(&walk, ctx);
 		else
-			err = gost28147_cfb_decrypt_segment(&walk, tfm);
+			err = gost28147_cfb_decrypt_segment(&walk, ctx);
 		err = skcipher_walk_done(&walk, err);
 	}
 
 	if (walk.nbytes) {
-		gost28147_cfb_final(&walk, tfm);
+		gost28147_cfb_final(&walk, ctx);
 		err = skcipher_walk_done(&walk, 0);
 	}
 
@@ -310,7 +311,7 @@ static int gost28147_cfb_decrypt(struct skcipher_request *req)
 static int gost28147_cfb_decrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
 			 struct scatterlist *src, unsigned int nbytes)
 {
-	struct crypto_tfm *tfm = &desc->tfm->base;
+	struct crypto_gost28147_mode_ctx *ctx = crypto_blkcipher_ctx(desc->tfm);
 	struct blkcipher_walk walk;
 	unsigned int bsize = GOST28147_BLOCK_SIZE;
 	int err;
@@ -320,14 +321,14 @@ static int gost28147_cfb_decrypt(struct blkcipher_desc *desc, struct scatterlist
 
 	while (walk.nbytes >= bsize) {
 		if (walk.src.virt.addr == walk.dst.virt.addr)
-			err = gost28147_cfb_decrypt_inplace(&walk, tfm);
+			err = gost28147_cfb_decrypt_inplace(&walk, ctx);
 		else
-			err = gost28147_cfb_decrypt_segment(&walk, tfm);
+			err = gost28147_cfb_decrypt_segment(&walk, ctx);
 		err = blkcipher_walk_done(desc, &walk, err);
 	}
 
 	if (walk.nbytes) {
-		gost28147_cfb_final(&walk, tfm);
+		gost28147_cfb_final(&walk, ctx);
 		err = blkcipher_walk_done(desc, &walk, 0);
 	}
 
@@ -335,10 +336,9 @@ static int gost28147_cfb_decrypt(struct blkcipher_desc *desc, struct scatterlist
 }
 #endif
 
-static void gost28147_cnt_single(struct crypto_skcipher *tfm,
+static void gost28147_cnt_single(struct crypto_gost28147_mode_ctx *ctx,
 		u8 *src, u8 *dst)
 {
-	struct crypto_gost28147_mode_ctx *ctx = crypto_skcipher_ctx(tfm);
 	u32 *kp = ctx->ctx.key;
 	const u32 *sbox = ctx->ctx.sbox;
 	u32 block[2];
@@ -372,7 +372,7 @@ static void gost28147_cnt_single(struct crypto_skcipher *tfm,
 
 /* final encrypt and decrypt is the same */
 static void gost28147_cnt_final(struct skcipher_walk *walk,
-			     struct crypto_skcipher *tfm)
+		struct crypto_gost28147_mode_ctx *ctx)
 {
 	u8 tmp[GOST28147_BLOCK_SIZE];
 	u8 *src = walk->src.virt.addr;
@@ -380,12 +380,12 @@ static void gost28147_cnt_final(struct skcipher_walk *walk,
 	u8 *iv = walk->iv;
 	unsigned int nbytes = walk->nbytes;
 
-	gost28147_cnt_single(tfm, iv, tmp);
+	gost28147_cnt_single(ctx, iv, tmp);
 	crypto_xor_cpy(dst, tmp, src, nbytes);
 }
 
 static int gost28147_cnt_crypt_segment(struct skcipher_walk *walk,
-				      struct crypto_skcipher *tfm)
+		struct crypto_gost28147_mode_ctx *ctx)
 {
 	const unsigned int bsize = GOST28147_BLOCK_SIZE;
 	unsigned int nbytes = walk->nbytes;
@@ -394,7 +394,7 @@ static int gost28147_cnt_crypt_segment(struct skcipher_walk *walk,
 	u8 *iv = walk->iv;
 
 	do {
-		gost28147_cnt_single(tfm, iv, dst);
+		gost28147_cnt_single(ctx, iv, dst);
 		crypto_xor(dst, src, bsize);
 
 		src += bsize;
@@ -405,7 +405,7 @@ static int gost28147_cnt_crypt_segment(struct skcipher_walk *walk,
 }
 
 static int gost28147_cnt_crypt_inplace(struct skcipher_walk *walk,
-				      struct crypto_skcipher *tfm)
+		struct crypto_gost28147_mode_ctx *ctx)
 {
 	const unsigned int bsize = GOST28147_BLOCK_SIZE;
 	unsigned int nbytes = walk->nbytes;
@@ -414,7 +414,7 @@ static int gost28147_cnt_crypt_inplace(struct skcipher_walk *walk,
 	u8 tmp[GOST28147_BLOCK_SIZE];
 
 	do {
-		gost28147_cnt_single(tfm, iv, tmp);
+		gost28147_cnt_single(ctx, iv, tmp);
 		crypto_xor(src, tmp, bsize);
 
 		src += bsize;
@@ -427,6 +427,7 @@ static int gost28147_cnt_crypt_inplace(struct skcipher_walk *walk,
 static int gost28147_cnt_crypt(struct skcipher_request *req)
 {
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
+	struct crypto_gost28147_mode_ctx *ctx = crypto_skcipher_ctx(tfm);
 	struct skcipher_walk walk;
 	unsigned int bsize = GOST28147_BLOCK_SIZE;
 	int err;
@@ -435,14 +436,14 @@ static int gost28147_cnt_crypt(struct skcipher_request *req)
 
 	while (walk.nbytes >= bsize) {
 		if (walk.src.virt.addr == walk.dst.virt.addr)
-			err = gost28147_cnt_crypt_inplace(&walk, tfm);
+			err = gost28147_cnt_crypt_inplace(&walk, ctx);
 		else
-			err = gost28147_cnt_crypt_segment(&walk, tfm);
+			err = gost28147_cnt_crypt_segment(&walk, ctx);
 		err = skcipher_walk_done(&walk, err);
 	}
 
 	if (walk.nbytes) {
-		gost28147_cnt_final(&walk, tfm);
+		gost28147_cnt_final(&walk, ctx);
 		err = skcipher_walk_done(&walk, 0);
 	}
 
@@ -452,7 +453,7 @@ static int gost28147_cnt_crypt(struct skcipher_request *req)
 static int gost28147_cnt_crypt(struct blkcipher_desc *desc, struct scatterlist *dst,
 			 struct scatterlist *src, unsigned int nbytes)
 {
-	struct crypto_tfm *tfm = &desc->tfm->base;
+	struct crypto_gost28147_mode_ctx *ctx = crypto_blkcipher_ctx(desc->tfm);
 	struct blkcipher_walk walk;
 	unsigned int bsize = GOST28147_BLOCK_SIZE;
 	int err;
@@ -462,14 +463,14 @@ static int gost28147_cnt_crypt(struct blkcipher_desc *desc, struct scatterlist *
 
 	while (walk.nbytes >= bsize) {
 		if (walk.src.virt.addr == walk.dst.virt.addr)
-			err = gost28147_cnt_crypt_inplace(&walk, tfm);
+			err = gost28147_cnt_crypt_inplace(&walk, ctx);
 		else
-			err = gost28147_cnt_crypt_segment(&walk, tfm);
+			err = gost28147_cnt_crypt_segment(&walk, ctx);
 		err = blkcipher_walk_done(desc, &walk, err);
 	}
 
 	if (walk.nbytes) {
-		gost28147_cnt_final(&walk, tfm);
+		gost28147_cnt_final(&walk, ctx);
 		err = blkcipher_walk_done(desc, &walk, 0);
 	}
 
