@@ -14,6 +14,7 @@ obj-m += magma_generic.o
 obj-$(CONFIG_CRYPTO_STREEBOG) += streebog_generic.o
 obj-m += gost-test.o
 
+gost28147_generic-y := gost28147_basic.o gost28147_modes.o
 gost-test-y:= testmgr.o gost-test-main.o
 
 ccflags-y := -I $(PWD)

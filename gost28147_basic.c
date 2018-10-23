@@ -40,18 +40,8 @@
 #include <linux/version.h>
 #include <asm/byteorder.h>
 #include <asm/unaligned.h>
+#include "gost28147_int.h"
 #include "gost28147_param.h"
-
-struct crypto_gost28147_ctx {
-	const u32 *sbox;
-	u32 key[GOST28147_KEY_SIZE/4];
-};
-
-struct crypto_gost28147_mode_ctx {
-	struct crypto_gost28147_ctx ctx;
-	int key_meshing;
-	unsigned int block_count;
-};
 
 struct crypto_gost28147imit_desc_ctx {
 	const u32 *sbox;
@@ -72,15 +62,6 @@ EXPORT_SYMBOL_GPL(gost28147_param_CryptoPro_3411);
 
 /* For magma module */
 EXPORT_SYMBOL_GPL(gost28147_param_TC26_Z);
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 14, 0)
-static inline void crypto_xor_cpy(u8 *dst, const u8 *src1, const u8 *src2,
-				  unsigned int size)
-{
-	memcpy(dst, src1, size);
-	crypto_xor(dst, src2, size);
-}
-#endif
 
 /*
  *  A macro that performs a full encryption round of GOST 28147-89.
@@ -112,7 +93,7 @@ static inline void crypto_xor_cpy(u8 *dst, const u8 *src1, const u8 *src2,
  * is set. &crypto_gost28147_ctx _must_ be the private data embedded in @tfm
  * which is retrieved with crypto_tfm_ctx().
  */
-static int crypto_gost28147_set_key(struct crypto_tfm *tfm, const u8 *in_key,
+int crypto_gost28147_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 		unsigned int key_len, const struct gost28147_param *param)
 {
 	struct crypto_gost28147_ctx *ctx = crypto_tfm_ctx(tfm);
@@ -253,362 +234,36 @@ static void gost28147_decrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 	put_unaligned_le32(block[1], out + 4);
 }
 
-static const u32 gost28147_key_mesh_cryptopro_data[GOST28147_KEY_SIZE / 4] = {
+static const u32 crypto_gost28147_key_mesh_cryptopro_data[GOST28147_KEY_SIZE / 4] = {
 	0x22720069, 0x2304c964,
 	0x96db3a8d, 0xc42ae946,
 	0x94acfe18, 0x1207ed00,
 	0xc2dc86c0, 0x2ba94cef,
 };
 
-static void gost28147_key_mesh_cryptopro(u32 *key, const u32 *sbox)
+void crypto_gost28147_key_mesh_cryptopro(u32 *key, const u32 *sbox)
 {
 	uint32_t newkey[GOST28147_KEY_SIZE/4];
 
 	crypto_gost28147_decrypt(key, sbox,
-			&gost28147_key_mesh_cryptopro_data[0],
+			&crypto_gost28147_key_mesh_cryptopro_data[0],
 			&newkey[0]);
 
 	crypto_gost28147_decrypt(key, sbox,
-			&gost28147_key_mesh_cryptopro_data[2],
+			&crypto_gost28147_key_mesh_cryptopro_data[2],
 			&newkey[2]);
 
 	crypto_gost28147_decrypt(key, sbox,
-			&gost28147_key_mesh_cryptopro_data[4],
+			&crypto_gost28147_key_mesh_cryptopro_data[4],
 			&newkey[4]);
 
 	crypto_gost28147_decrypt(key, sbox,
-			&gost28147_key_mesh_cryptopro_data[6],
+			&crypto_gost28147_key_mesh_cryptopro_data[6],
 			&newkey[6]);
 
 	memcpy(key, newkey, sizeof(newkey));
 }
-
-static int gost28147_mode_setkey(struct crypto_skcipher *tfm, const u8 *key,
-		unsigned int len, const struct gost28147_param *param)
-{
-	struct crypto_gost28147_mode_ctx *ctx = crypto_skcipher_ctx(tfm);
-
-	ctx->block_count = 0;
-	ctx->key_meshing = param->key_meshing;
-	return crypto_gost28147_set_key(crypto_skcipher_tfm(tfm),
-			key, len, param);
-}
-
-static int gost28147_mode_setkey_tc26z(struct crypto_skcipher *tfm, const u8 *key,
-		unsigned int len)
-{
-	return gost28147_mode_setkey(tfm, key, len, &gost28147_param_TC26_Z);
-}
-
-static int gost28147_mode_setkey_cpa(struct crypto_skcipher *tfm, const u8 *key,
-		unsigned int len)
-{
-	return gost28147_mode_setkey(tfm, key, len, &gost28147_param_CryptoPro_A);
-}
-
-static int gost28147_mode_setkey_cpb(struct crypto_skcipher *tfm, const u8 *key,
-		unsigned int len)
-{
-	return gost28147_mode_setkey(tfm, key, len, &gost28147_param_CryptoPro_B);
-}
-
-static int gost28147_mode_setkey_cpc(struct crypto_skcipher *tfm, const u8 *key,
-		unsigned int len)
-{
-	return gost28147_mode_setkey(tfm, key, len, &gost28147_param_CryptoPro_C);
-}
-
-static int gost28147_mode_setkey_cpd(struct crypto_skcipher *tfm, const u8 *key,
-		unsigned int len)
-{
-	return gost28147_mode_setkey(tfm, key, len, &gost28147_param_CryptoPro_D);
-}
-
-static void gost28147_cfb_encrypt_one(struct crypto_skcipher *tfm,
-		u8 *src, u8 *dst)
-{
-	struct crypto_gost28147_mode_ctx *ctx = crypto_skcipher_ctx(tfm);
-	u32 *kp = ctx->ctx.key;
-	const u32 *sbox = ctx->ctx.sbox;
-	u32 block[2];
-
-	block[0] = get_unaligned_le32(src);
-	block[1] = get_unaligned_le32(src + 4);
-	if (ctx->key_meshing && ctx->block_count == 1024 / GOST28147_BLOCK_SIZE) {
-		gost28147_key_mesh_cryptopro(kp, sbox);
-		crypto_gost28147_encrypt(kp, sbox, block, block);
-		ctx->block_count = 0;
-	}
-
-	crypto_gost28147_encrypt(kp, sbox, block, block);
-	put_unaligned_le32(block[0], dst);
-	put_unaligned_le32(block[1], dst + 4);
-	ctx->block_count++;
-}
-
-/* final encrypt and decrypt is the same */
-static void gost28147_cfb_final(struct skcipher_walk *walk,
-			     struct crypto_skcipher *tfm)
-{
-	u8 tmp[GOST28147_BLOCK_SIZE];
-	u8 *src = walk->src.virt.addr;
-	u8 *dst = walk->dst.virt.addr;
-	u8 *iv = walk->iv;
-	unsigned int nbytes = walk->nbytes;
-
-	gost28147_cfb_encrypt_one(tfm, iv, tmp);
-	crypto_xor_cpy(dst, tmp, src, nbytes);
-}
-
-static int gost28147_cfb_encrypt_segment(struct skcipher_walk *walk,
-				      struct crypto_skcipher *tfm)
-{
-	const unsigned int bsize = GOST28147_BLOCK_SIZE;
-	unsigned int nbytes = walk->nbytes;
-	u8 *src = walk->src.virt.addr;
-	u8 *dst = walk->dst.virt.addr;
-	u8 *iv = walk->iv;
-
-	do {
-		gost28147_cfb_encrypt_one(tfm, iv, dst);
-		crypto_xor(dst, src, bsize);
-		memcpy(iv, dst, bsize);
-
-		src += bsize;
-		dst += bsize;
-	} while ((nbytes -= bsize) >= bsize);
-
-	return nbytes;
-}
-
-static int gost28147_cfb_encrypt_inplace(struct skcipher_walk *walk,
-				      struct crypto_skcipher *tfm)
-{
-	const unsigned int bsize = GOST28147_BLOCK_SIZE;
-	unsigned int nbytes = walk->nbytes;
-	u8 *src = walk->src.virt.addr;
-	u8 *iv = walk->iv;
-	u8 tmp[GOST28147_BLOCK_SIZE];
-
-	do {
-		gost28147_cfb_encrypt_one(tfm, iv, tmp);
-		crypto_xor(src, tmp, bsize);
-		iv = src;
-
-		src += bsize;
-	} while ((nbytes -= bsize) >= bsize);
-
-	memcpy(walk->iv, iv, bsize);
-
-	return nbytes;
-}
-
-static int gost28147_cfb_encrypt(struct skcipher_request *req)
-{
-	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
-	struct skcipher_walk walk;
-	unsigned int bsize = GOST28147_BLOCK_SIZE;
-	int err;
-
-	err = skcipher_walk_virt(&walk, req, false);
-
-	while (walk.nbytes >= bsize) {
-		if (walk.src.virt.addr == walk.dst.virt.addr)
-			err = gost28147_cfb_encrypt_inplace(&walk, tfm);
-		else
-			err = gost28147_cfb_encrypt_segment(&walk, tfm);
-		err = skcipher_walk_done(&walk, err);
-	}
-
-	if (walk.nbytes) {
-		gost28147_cfb_final(&walk, tfm);
-		err = skcipher_walk_done(&walk, 0);
-	}
-
-	return err;
-}
-
-static int gost28147_cfb_decrypt_segment(struct skcipher_walk *walk,
-				      struct crypto_skcipher *tfm)
-{
-	const unsigned int bsize = GOST28147_BLOCK_SIZE;
-	unsigned int nbytes = walk->nbytes;
-	u8 *src = walk->src.virt.addr;
-	u8 *dst = walk->dst.virt.addr;
-	u8 *iv = walk->iv;
-
-	do {
-		gost28147_cfb_encrypt_one(tfm, iv, dst);
-		crypto_xor(dst, src, bsize);
-		iv = src;
-
-		src += bsize;
-		dst += bsize;
-	} while ((nbytes -= bsize) >= bsize);
-
-	memcpy(walk->iv, iv, bsize);
-
-	return nbytes;
-}
-
-static int gost28147_cfb_decrypt_inplace(struct skcipher_walk *walk,
-				      struct crypto_skcipher *tfm)
-{
-	const unsigned int bsize = GOST28147_BLOCK_SIZE;
-	unsigned int nbytes = walk->nbytes;
-	u8 *src = walk->src.virt.addr;
-	u8 *iv = walk->iv;
-	u8 tmp[GOST28147_BLOCK_SIZE];
-
-	do {
-		gost28147_cfb_encrypt_one(tfm, iv, tmp);
-		memcpy(iv, src, bsize);
-		crypto_xor(src, tmp, bsize);
-		src += bsize;
-	} while ((nbytes -= bsize) >= bsize);
-
-	memcpy(walk->iv, iv, bsize);
-
-	return nbytes;
-}
-
-static int gost28147_cfb_decrypt(struct skcipher_request *req)
-{
-	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
-	struct skcipher_walk walk;
-	const unsigned int bsize = GOST28147_BLOCK_SIZE;
-	int err;
-
-	err = skcipher_walk_virt(&walk, req, false);
-
-	while (walk.nbytes >= bsize) {
-		if (walk.src.virt.addr == walk.dst.virt.addr)
-			err = gost28147_cfb_decrypt_inplace(&walk, tfm);
-		else
-			err = gost28147_cfb_decrypt_segment(&walk, tfm);
-		err = skcipher_walk_done(&walk, err);
-	}
-
-	if (walk.nbytes) {
-		gost28147_cfb_final(&walk, tfm);
-		err = skcipher_walk_done(&walk, 0);
-	}
-
-	return err;
-}
-
-static void gost28147_cnt_single(struct crypto_skcipher *tfm,
-		u8 *src, u8 *dst)
-{
-	struct crypto_gost28147_mode_ctx *ctx = crypto_skcipher_ctx(tfm);
-	u32 *kp = ctx->ctx.key;
-	const u32 *sbox = ctx->ctx.sbox;
-	u32 block[2];
-	u32 temp;
-
-	block[0] = get_unaligned_le32(src);
-	block[1] = get_unaligned_le32(src + 4);
-	if (ctx->block_count == 0)
-		crypto_gost28147_encrypt(kp, sbox, block, block);
-	else if (ctx->key_meshing && ctx->block_count == 1024 / GOST28147_BLOCK_SIZE) {
-		gost28147_key_mesh_cryptopro(kp, sbox);
-		crypto_gost28147_encrypt(kp, sbox, block, block);
-		ctx->block_count = 0;
-	}
-
-	block[0] += 0x01010101;
-	temp = block[1] + 0x01010104;
-	if (temp < block[1])
-		block[1] = temp + 1; /* Overflow */
-	else
-		block[1] = temp;
-
-	put_unaligned_le32(block[0], src);
-	put_unaligned_le32(block[1], src + 4);
-
-	crypto_gost28147_encrypt(kp, sbox, block, block);
-	put_unaligned_le32(block[0], dst);
-	put_unaligned_le32(block[1], dst + 4);
-	ctx->block_count++;
-}
-
-/* final encrypt and decrypt is the same */
-static void gost28147_cnt_final(struct skcipher_walk *walk,
-			     struct crypto_skcipher *tfm)
-{
-	u8 tmp[GOST28147_BLOCK_SIZE];
-	u8 *src = walk->src.virt.addr;
-	u8 *dst = walk->dst.virt.addr;
-	u8 *iv = walk->iv;
-	unsigned int nbytes = walk->nbytes;
-
-	gost28147_cnt_single(tfm, iv, tmp);
-	crypto_xor_cpy(dst, tmp, src, nbytes);
-}
-
-static int gost28147_cnt_crypt_segment(struct skcipher_walk *walk,
-				      struct crypto_skcipher *tfm)
-{
-	const unsigned int bsize = GOST28147_BLOCK_SIZE;
-	unsigned int nbytes = walk->nbytes;
-	u8 *src = walk->src.virt.addr;
-	u8 *dst = walk->dst.virt.addr;
-	u8 *iv = walk->iv;
-
-	do {
-		gost28147_cnt_single(tfm, iv, dst);
-		crypto_xor(dst, src, bsize);
-
-		src += bsize;
-		dst += bsize;
-	} while ((nbytes -= bsize) >= bsize);
-
-	return nbytes;
-}
-
-static int gost28147_cnt_crypt_inplace(struct skcipher_walk *walk,
-				      struct crypto_skcipher *tfm)
-{
-	const unsigned int bsize = GOST28147_BLOCK_SIZE;
-	unsigned int nbytes = walk->nbytes;
-	u8 *src = walk->src.virt.addr;
-	u8 *iv = walk->iv;
-	u8 tmp[GOST28147_BLOCK_SIZE];
-
-	do {
-		gost28147_cnt_single(tfm, iv, tmp);
-		crypto_xor(src, tmp, bsize);
-
-		src += bsize;
-	} while ((nbytes -= bsize) >= bsize);
-
-	return nbytes;
-}
-
-static int gost28147_cnt_crypt(struct skcipher_request *req)
-{
-	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
-	struct skcipher_walk walk;
-	unsigned int bsize = GOST28147_BLOCK_SIZE;
-	int err;
-
-	err = skcipher_walk_virt(&walk, req, false);
-
-	while (walk.nbytes >= bsize) {
-		if (walk.src.virt.addr == walk.dst.virt.addr)
-			err = gost28147_cnt_crypt_inplace(&walk, tfm);
-		else
-			err = gost28147_cnt_crypt_segment(&walk, tfm);
-		err = skcipher_walk_done(&walk, err);
-	}
-
-	if (walk.nbytes) {
-		gost28147_cnt_final(&walk, tfm);
-		err = skcipher_walk_done(&walk, 0);
-	}
-
-	return err;
-}
+EXPORT_SYMBOL_GPL(crypto_gost28147_key_mesh_cryptopro);
 
 static int gost28147imit_init(struct shash_desc *desc, const struct gost28147_param *param)
 {
@@ -695,7 +350,7 @@ static void gost28147_imit_compress(struct crypto_gost28147imit_desc_ctx *ctx,
 
 	for (i = 0; i < blocks; i++, data += GOST28147IMIT_BLOCK_SIZE) {
 		if (ctx->key_meshing && ctx->block_count == 1024 / GOST28147IMIT_BLOCK_SIZE) {
-			gost28147_key_mesh_cryptopro(ctx->key, ctx->sbox);
+			crypto_gost28147_key_mesh_cryptopro(ctx->key, ctx->sbox);
 			ctx->block_count = 0;
 		}
 
@@ -849,168 +504,6 @@ static struct crypto_alg gost28147_algs[] = { {
 	}
 } };
 
-static struct skcipher_alg gost28147_mode_algs[] = { {
-	.min_keysize	= GOST28147_KEY_SIZE,
-	.max_keysize	= GOST28147_KEY_SIZE,
-	.ivsize		= GOST28147_IV_SIZE,
-	.chunksize	= GOST28147_BLOCK_SIZE,
-	.setkey		= gost28147_mode_setkey_tc26z,
-	.encrypt	= gost28147_cfb_encrypt,
-	.decrypt	= gost28147_cfb_decrypt,
-	.base		= {
-		.cra_name	=	"cfb(gost28147-tc26z)",
-		.cra_driver_name =	"cfb-gost28147-tc26z-generic",
-		.cra_priority	=	100,
-		.cra_blocksize	=	1,
-		.cra_ctxsize	=	sizeof(struct crypto_gost28147_mode_ctx),
-		.cra_module	=	THIS_MODULE,
-	}
-}, {
-	.min_keysize	= GOST28147_KEY_SIZE,
-	.max_keysize	= GOST28147_KEY_SIZE,
-	.ivsize		= GOST28147_IV_SIZE,
-	.chunksize	= GOST28147_BLOCK_SIZE,
-	.setkey		= gost28147_mode_setkey_cpa,
-	.encrypt	= gost28147_cfb_encrypt,
-	.decrypt	= gost28147_cfb_decrypt,
-	.base		= {
-		.cra_name	=	"cfb(gost28147-cpa)",
-		.cra_driver_name =	"cfb-gost28147-cpa-generic",
-		.cra_priority	=	100,
-		.cra_blocksize	=	1,
-		.cra_ctxsize	=	sizeof(struct crypto_gost28147_mode_ctx),
-		.cra_module	=	THIS_MODULE,
-	}
-}, {
-	.min_keysize	= GOST28147_KEY_SIZE,
-	.max_keysize	= GOST28147_KEY_SIZE,
-	.ivsize		= GOST28147_IV_SIZE,
-	.chunksize	= GOST28147_BLOCK_SIZE,
-	.setkey		= gost28147_mode_setkey_cpb,
-	.encrypt	= gost28147_cfb_encrypt,
-	.decrypt	= gost28147_cfb_decrypt,
-	.base		= {
-		.cra_name	=	"cfb(gost28147-cpb)",
-		.cra_driver_name =	"cfb-gost28147-cpb-generic",
-		.cra_priority	=	100,
-		.cra_blocksize	=	1,
-		.cra_ctxsize	=	sizeof(struct crypto_gost28147_mode_ctx),
-		.cra_module	=	THIS_MODULE,
-	}
-}, {
-	.min_keysize	= GOST28147_KEY_SIZE,
-	.max_keysize	= GOST28147_KEY_SIZE,
-	.ivsize		= GOST28147_IV_SIZE,
-	.chunksize	= GOST28147_BLOCK_SIZE,
-	.setkey		= gost28147_mode_setkey_cpc,
-	.encrypt	= gost28147_cfb_encrypt,
-	.decrypt	= gost28147_cfb_decrypt,
-	.base		= {
-		.cra_name	=	"cfb(gost28147-cpc)",
-		.cra_driver_name =	"cfb-gost28147-cpc-generic",
-		.cra_priority	=	100,
-		.cra_blocksize	=	1,
-		.cra_ctxsize	=	sizeof(struct crypto_gost28147_mode_ctx),
-		.cra_module	=	THIS_MODULE,
-	}
-}, {
-	.min_keysize	= GOST28147_KEY_SIZE,
-	.max_keysize	= GOST28147_KEY_SIZE,
-	.ivsize		= GOST28147_IV_SIZE,
-	.chunksize	= GOST28147_BLOCK_SIZE,
-	.setkey		= gost28147_mode_setkey_cpd,
-	.encrypt	= gost28147_cfb_encrypt,
-	.decrypt	= gost28147_cfb_decrypt,
-	.base		= {
-		.cra_name	=	"cfb(gost28147-cpd)",
-		.cra_driver_name =	"cfb-gost28147-cpd-generic",
-		.cra_priority	=	100,
-		.cra_blocksize	=	1,
-		.cra_ctxsize	=	sizeof(struct crypto_gost28147_mode_ctx),
-		.cra_module	=	THIS_MODULE,
-	}
-}, {
-	.min_keysize	= GOST28147_KEY_SIZE,
-	.max_keysize	= GOST28147_KEY_SIZE,
-	.ivsize		= GOST28147_IV_SIZE,
-	.chunksize	= GOST28147_BLOCK_SIZE,
-	.setkey		= gost28147_mode_setkey_tc26z,
-	.encrypt	= gost28147_cnt_crypt,
-	.decrypt	= gost28147_cnt_crypt,
-	.base		= {
-		.cra_name	=	"cnt(gost28147-tc26z)",
-		.cra_driver_name =	"cnt-gost28147-tc26z-generic",
-		.cra_priority	=	100,
-		.cra_blocksize	=	1,
-		.cra_ctxsize	=	sizeof(struct crypto_gost28147_mode_ctx),
-		.cra_module	=	THIS_MODULE,
-	}
-}, {
-	.min_keysize	= GOST28147_KEY_SIZE,
-	.max_keysize	= GOST28147_KEY_SIZE,
-	.ivsize		= GOST28147_IV_SIZE,
-	.chunksize	= GOST28147_BLOCK_SIZE,
-	.setkey		= gost28147_mode_setkey_cpa,
-	.encrypt	= gost28147_cnt_crypt,
-	.decrypt	= gost28147_cnt_crypt,
-	.base		= {
-		.cra_name	=	"cnt(gost28147-cpa)",
-		.cra_driver_name =	"cnt-gost28147-cpa-generic",
-		.cra_priority	=	100,
-		.cra_blocksize	=	1,
-		.cra_ctxsize	=	sizeof(struct crypto_gost28147_mode_ctx),
-		.cra_module	=	THIS_MODULE,
-	}
-}, {
-	.min_keysize	= GOST28147_KEY_SIZE,
-	.max_keysize	= GOST28147_KEY_SIZE,
-	.ivsize		= GOST28147_IV_SIZE,
-	.chunksize	= GOST28147_BLOCK_SIZE,
-	.setkey		= gost28147_mode_setkey_cpb,
-	.encrypt	= gost28147_cnt_crypt,
-	.decrypt	= gost28147_cnt_crypt,
-	.base		= {
-		.cra_name	=	"cnt(gost28147-cpb)",
-		.cra_driver_name =	"cnt-gost28147-cpb-generic",
-		.cra_priority	=	100,
-		.cra_blocksize	=	1,
-		.cra_ctxsize	=	sizeof(struct crypto_gost28147_mode_ctx),
-		.cra_module	=	THIS_MODULE,
-	}
-}, {
-	.min_keysize	= GOST28147_KEY_SIZE,
-	.max_keysize	= GOST28147_KEY_SIZE,
-	.ivsize		= GOST28147_IV_SIZE,
-	.chunksize	= GOST28147_BLOCK_SIZE,
-	.setkey		= gost28147_mode_setkey_cpc,
-	.encrypt	= gost28147_cnt_crypt,
-	.decrypt	= gost28147_cnt_crypt,
-	.base		= {
-		.cra_name	=	"cnt(gost28147-cpc)",
-		.cra_driver_name =	"cnt-gost28147-cpc-generic",
-		.cra_priority	=	100,
-		.cra_blocksize	=	1,
-		.cra_ctxsize	=	sizeof(struct crypto_gost28147_mode_ctx),
-		.cra_module	=	THIS_MODULE,
-	}
-}, {
-	.min_keysize	= GOST28147_KEY_SIZE,
-	.max_keysize	= GOST28147_KEY_SIZE,
-	.ivsize		= GOST28147_IV_SIZE,
-	.chunksize	= GOST28147_BLOCK_SIZE,
-	.setkey		= gost28147_mode_setkey_cpd,
-	.encrypt	= gost28147_cnt_crypt,
-	.decrypt	= gost28147_cnt_crypt,
-	.base		= {
-		.cra_name	=	"cnt(gost28147-cpd)",
-		.cra_driver_name =	"cnt-gost28147-cpd-generic",
-		.cra_priority	=	100,
-		.cra_blocksize	=	1,
-		.cra_ctxsize	=	sizeof(struct crypto_gost28147_mode_ctx),
-		.cra_module	=	THIS_MODULE,
-	}
-} };
-
 static struct shash_alg gost28147imit_algs[] = { {
 	.digestsize	= GOST28147IMIT_DIGEST_SIZE,
 	.init		= gost28147imit_tc26z_init,
@@ -1101,19 +594,19 @@ static int __init gost28147_init(void)
 	if (ret < 0)
 		return ret;
 
-	ret = crypto_register_skciphers(gost28147_mode_algs, ARRAY_SIZE(gost28147_mode_algs));
-	if (ret < 0)
-		goto err_skciphers;
-
 	ret = crypto_register_shashes(gost28147imit_algs, ARRAY_SIZE(gost28147imit_algs));
 	if (ret < 0)
 		goto err_shashes;
 
+	ret = gost28147_modes_init();
+	if (ret < 0)
+		goto err_modes;
+
 	return 0;
 
+err_modes:
+	crypto_unregister_shashes(gost28147imit_algs, ARRAY_SIZE(gost28147imit_algs));
 err_shashes:
-	crypto_unregister_skciphers(gost28147_mode_algs, ARRAY_SIZE(gost28147_mode_algs));
-err_skciphers:
 	crypto_unregister_algs(gost28147_algs, ARRAY_SIZE(gost28147_algs));
 
 	return ret;
@@ -1121,8 +614,8 @@ err_skciphers:
 
 static void __exit gost28147_fini(void)
 {
+	gost28147_modes_fini();
 	crypto_unregister_shashes(gost28147imit_algs, ARRAY_SIZE(gost28147imit_algs));
-	crypto_unregister_skciphers(gost28147_mode_algs, ARRAY_SIZE(gost28147_mode_algs));
 	crypto_unregister_algs(gost28147_algs, ARRAY_SIZE(gost28147_algs));
 }
 
