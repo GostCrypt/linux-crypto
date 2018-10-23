@@ -212,7 +212,7 @@ static int gost28147_cfb_encrypt(struct skcipher_request *req)
 static int gost28147_cfb_encrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
 			 struct scatterlist *src, unsigned int nbytes)
 {
-	struct crypto_tfm *tfm = crypto_blkcipher_ctx(desc->tfm);
+	struct crypto_tfm *tfm = &desc->tfm->base;
 	struct blkcipher_walk walk;
 	unsigned int bsize = GOST28147_BLOCK_SIZE;
 	int err;
@@ -310,7 +310,7 @@ static int gost28147_cfb_decrypt(struct skcipher_request *req)
 static int gost28147_cfb_decrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
 			 struct scatterlist *src, unsigned int nbytes)
 {
-	struct crypto_tfm *tfm = crypto_blkcipher_ctx(desc->tfm);
+	struct crypto_tfm *tfm = &desc->tfm->base;
 	struct blkcipher_walk walk;
 	unsigned int bsize = GOST28147_BLOCK_SIZE;
 	int err;
@@ -452,7 +452,7 @@ static int gost28147_cnt_crypt(struct skcipher_request *req)
 static int gost28147_cnt_crypt(struct blkcipher_desc *desc, struct scatterlist *dst,
 			 struct scatterlist *src, unsigned int nbytes)
 {
-	struct crypto_tfm *tfm = crypto_blkcipher_ctx(desc->tfm);
+	struct crypto_tfm *tfm = &desc->tfm->base;
 	struct blkcipher_walk walk;
 	unsigned int bsize = GOST28147_BLOCK_SIZE;
 	int err;
