@@ -137,6 +137,7 @@ static void gost28147_cfb_final(struct skcipher_walk *walk,
 
 	gost28147_cfb_encrypt_one(ctx, iv, tmp);
 	crypto_xor_cpy(dst, tmp, src, nbytes);
+	pr_info("Final %d\n", nbytes);
 }
 
 static int gost28147_cfb_encrypt_segment(struct skcipher_walk *walk,
