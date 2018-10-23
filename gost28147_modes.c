@@ -56,6 +56,13 @@ static inline void crypto_xor_cpy(u8 *dst, const u8 *src1, const u8 *src2,
 }
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0)
+#define crypto_skcipher crypto_tfm
+#define crypto_skcipher_ctx(tfm) crypto_tfm_ctx(tfm)
+#define crypto_skcipher_tfm(tfm) (tfm)
+#define skcipher_walk blkcipher_walk
+#endif
+
 static int gost28147_mode_setkey(struct crypto_skcipher *tfm, const u8 *key,
 		unsigned int len, const struct gost28147_param *param)
 {
@@ -176,6 +183,7 @@ static int gost28147_cfb_encrypt_inplace(struct skcipher_walk *walk,
 	return nbytes;
 }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 10, 0)
 static int gost28147_cfb_encrypt(struct skcipher_request *req)
 {
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
@@ -200,6 +208,34 @@ static int gost28147_cfb_encrypt(struct skcipher_request *req)
 
 	return err;
 }
+#else
+static int gost28147_cfb_encrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
+			 struct scatterlist *src, unsigned int nbytes)
+{
+	struct crypto_tfm *tfm = crypto_blkcipher_ctx(desc->tfm);
+	struct blkcipher_walk walk;
+	unsigned int bsize = GOST28147_BLOCK_SIZE;
+	int err;
+
+	blkcipher_walk_init(&walk, dst, src, nbytes);
+	err = blkcipher_walk_virt_block(desc, &walk, GOST28147_BLOCK_SIZE);
+
+	while (walk.nbytes >= bsize) {
+		if (walk.src.virt.addr == walk.dst.virt.addr)
+			err = gost28147_cfb_encrypt_inplace(&walk, tfm);
+		else
+			err = gost28147_cfb_encrypt_segment(&walk, tfm);
+		err = blkcipher_walk_done(desc, &walk, err);
+	}
+
+	if (walk.nbytes) {
+		gost28147_cfb_final(&walk, tfm);
+		err = blkcipher_walk_done(desc, &walk, 0);
+	}
+
+	return err;
+}
+#endif
 
 static int gost28147_cfb_decrypt_segment(struct skcipher_walk *walk,
 				      struct crypto_skcipher *tfm)
@@ -245,6 +281,7 @@ static int gost28147_cfb_decrypt_inplace(struct skcipher_walk *walk,
 	return nbytes;
 }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 10, 0)
 static int gost28147_cfb_decrypt(struct skcipher_request *req)
 {
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
@@ -269,6 +306,34 @@ static int gost28147_cfb_decrypt(struct skcipher_request *req)
 
 	return err;
 }
+#else
+static int gost28147_cfb_decrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
+			 struct scatterlist *src, unsigned int nbytes)
+{
+	struct crypto_tfm *tfm = crypto_blkcipher_ctx(desc->tfm);
+	struct blkcipher_walk walk;
+	unsigned int bsize = GOST28147_BLOCK_SIZE;
+	int err;
+
+	blkcipher_walk_init(&walk, dst, src, nbytes);
+	err = blkcipher_walk_virt_block(desc, &walk, GOST28147_BLOCK_SIZE);
+
+	while (walk.nbytes >= bsize) {
+		if (walk.src.virt.addr == walk.dst.virt.addr)
+			err = gost28147_cfb_decrypt_inplace(&walk, tfm);
+		else
+			err = gost28147_cfb_decrypt_segment(&walk, tfm);
+		err = blkcipher_walk_done(desc, &walk, err);
+	}
+
+	if (walk.nbytes) {
+		gost28147_cfb_final(&walk, tfm);
+		err = blkcipher_walk_done(desc, &walk, 0);
+	}
+
+	return err;
+}
+#endif
 
 static void gost28147_cnt_single(struct crypto_skcipher *tfm,
 		u8 *src, u8 *dst)
@@ -358,6 +423,7 @@ static int gost28147_cnt_crypt_inplace(struct skcipher_walk *walk,
 	return nbytes;
 }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 10, 0)
 static int gost28147_cnt_crypt(struct skcipher_request *req)
 {
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
@@ -382,7 +448,36 @@ static int gost28147_cnt_crypt(struct skcipher_request *req)
 
 	return err;
 }
+#else
+static int gost28147_cnt_crypt(struct blkcipher_desc *desc, struct scatterlist *dst,
+			 struct scatterlist *src, unsigned int nbytes)
+{
+	struct crypto_tfm *tfm = crypto_blkcipher_ctx(desc->tfm);
+	struct blkcipher_walk walk;
+	unsigned int bsize = GOST28147_BLOCK_SIZE;
+	int err;
 
+	blkcipher_walk_init(&walk, dst, src, nbytes);
+	err = blkcipher_walk_virt_block(desc, &walk, GOST28147_BLOCK_SIZE);
+
+	while (walk.nbytes >= bsize) {
+		if (walk.src.virt.addr == walk.dst.virt.addr)
+			err = gost28147_cnt_crypt_inplace(&walk, tfm);
+		else
+			err = gost28147_cnt_crypt_segment(&walk, tfm);
+		err = blkcipher_walk_done(desc, &walk, err);
+	}
+
+	if (walk.nbytes) {
+		gost28147_cnt_final(&walk, tfm);
+		err = blkcipher_walk_done(desc, &walk, 0);
+	}
+
+	return err;
+}
+#endif
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 10, 0)
 static struct skcipher_alg gost28147_mode_algs[] = { {
 	.min_keysize	= GOST28147_KEY_SIZE,
 	.max_keysize	= GOST28147_KEY_SIZE,
@@ -554,3 +649,206 @@ void __exit gost28147_modes_fini(void)
 {
 	crypto_unregister_skciphers(gost28147_mode_algs, ARRAY_SIZE(gost28147_mode_algs));
 }
+#else
+static struct crypto_alg gost28147_mode_algs[] = { {
+	.cra_name	=	"cfb(gost28147-tc26z)",
+	.cra_driver_name =	"cfb-gost28147-tc26z-generic",
+	.cra_flags	=	CRYPTO_ALG_TYPE_BLKCIPHER,
+	.cra_priority	=	100,
+	.cra_blocksize	=	1,
+	.cra_ctxsize	=	sizeof(struct crypto_gost28147_mode_ctx),
+	.cra_type	=	&crypto_blkcipher_type,
+	.cra_module	=	THIS_MODULE,
+	.cra_u		=	{
+		.blkcipher	=	{
+			.min_keysize	= GOST28147_KEY_SIZE,
+			.max_keysize	= GOST28147_KEY_SIZE,
+			.ivsize		= GOST28147_IV_SIZE,
+			.setkey		= gost28147_mode_setkey_tc26z,
+			.encrypt	= gost28147_cfb_encrypt,
+			.decrypt	= gost28147_cfb_decrypt,
+		}
+	}
+}, {
+	.cra_name	=	"cfb(gost28147-cpa)",
+	.cra_driver_name =	"cfb-gost28147-cpa-generic",
+	.cra_flags	=	CRYPTO_ALG_TYPE_BLKCIPHER,
+	.cra_priority	=	100,
+	.cra_blocksize	=	1,
+	.cra_ctxsize	=	sizeof(struct crypto_gost28147_mode_ctx),
+	.cra_type	=	&crypto_blkcipher_type,
+	.cra_module	=	THIS_MODULE,
+	.cra_u		=	{
+		.blkcipher	=	{
+			.min_keysize	= GOST28147_KEY_SIZE,
+			.max_keysize	= GOST28147_KEY_SIZE,
+			.ivsize		= GOST28147_IV_SIZE,
+			.setkey		= gost28147_mode_setkey_cpa,
+			.encrypt	= gost28147_cfb_encrypt,
+			.decrypt	= gost28147_cfb_decrypt,
+		}
+	}
+}, {
+	.cra_name	=	"cfb(gost28147-cpb)",
+	.cra_driver_name =	"cfb-gost28147-cpb-generic",
+	.cra_flags	=	CRYPTO_ALG_TYPE_BLKCIPHER,
+	.cra_priority	=	100,
+	.cra_blocksize	=	1,
+	.cra_ctxsize	=	sizeof(struct crypto_gost28147_mode_ctx),
+	.cra_type	=	&crypto_blkcipher_type,
+	.cra_module	=	THIS_MODULE,
+	.cra_u		=	{
+		.blkcipher	=	{
+			.min_keysize	= GOST28147_KEY_SIZE,
+			.max_keysize	= GOST28147_KEY_SIZE,
+			.ivsize		= GOST28147_IV_SIZE,
+			.setkey		= gost28147_mode_setkey_cpb,
+			.encrypt	= gost28147_cfb_encrypt,
+			.decrypt	= gost28147_cfb_decrypt,
+		}
+	}
+}, {
+	.cra_name	=	"cfb(gost28147-cpc)",
+	.cra_driver_name =	"cfb-gost28147-cpc-generic",
+	.cra_flags	=	CRYPTO_ALG_TYPE_BLKCIPHER,
+	.cra_priority	=	100,
+	.cra_blocksize	=	1,
+	.cra_ctxsize	=	sizeof(struct crypto_gost28147_mode_ctx),
+	.cra_type	=	&crypto_blkcipher_type,
+	.cra_module	=	THIS_MODULE,
+	.cra_u		=	{
+		.blkcipher	=	{
+			.min_keysize	= GOST28147_KEY_SIZE,
+			.max_keysize	= GOST28147_KEY_SIZE,
+			.ivsize		= GOST28147_IV_SIZE,
+			.setkey		= gost28147_mode_setkey_cpc,
+			.encrypt	= gost28147_cfb_encrypt,
+			.decrypt	= gost28147_cfb_decrypt,
+		}
+	}
+}, {
+	.cra_name	=	"cfb(gost28147-cpd)",
+	.cra_driver_name =	"cfb-gost28147-cpd-generic",
+	.cra_flags	=	CRYPTO_ALG_TYPE_BLKCIPHER,
+	.cra_priority	=	100,
+	.cra_blocksize	=	1,
+	.cra_ctxsize	=	sizeof(struct crypto_gost28147_mode_ctx),
+	.cra_type	=	&crypto_blkcipher_type,
+	.cra_module	=	THIS_MODULE,
+	.cra_u		=	{
+		.blkcipher	=	{
+			.min_keysize	= GOST28147_KEY_SIZE,
+			.max_keysize	= GOST28147_KEY_SIZE,
+			.ivsize		= GOST28147_IV_SIZE,
+			.setkey		= gost28147_mode_setkey_cpd,
+			.encrypt	= gost28147_cfb_encrypt,
+			.decrypt	= gost28147_cfb_decrypt,
+		}
+	}
+}, {
+	.cra_name	=	"cnt(gost28147-tc26z)",
+	.cra_driver_name =	"cnt-gost28147-tc26z-generic",
+	.cra_flags	=	CRYPTO_ALG_TYPE_BLKCIPHER,
+	.cra_priority	=	100,
+	.cra_blocksize	=	1,
+	.cra_ctxsize	=	sizeof(struct crypto_gost28147_mode_ctx),
+	.cra_type	=	&crypto_blkcipher_type,
+	.cra_module	=	THIS_MODULE,
+	.cra_u		=	{
+		.blkcipher	=	{
+			.min_keysize	= GOST28147_KEY_SIZE,
+			.max_keysize	= GOST28147_KEY_SIZE,
+			.ivsize		= GOST28147_IV_SIZE,
+			.setkey		= gost28147_mode_setkey_tc26z,
+			.encrypt	= gost28147_cnt_crypt,
+			.decrypt	= gost28147_cnt_crypt,
+		}
+	}
+}, {
+	.cra_name	=	"cnt(gost28147-cpa)",
+	.cra_driver_name =	"cnt-gost28147-cpa-generic",
+	.cra_flags	=	CRYPTO_ALG_TYPE_BLKCIPHER,
+	.cra_priority	=	100,
+	.cra_blocksize	=	1,
+	.cra_ctxsize	=	sizeof(struct crypto_gost28147_mode_ctx),
+	.cra_type	=	&crypto_blkcipher_type,
+	.cra_module	=	THIS_MODULE,
+	.cra_u		=	{
+		.blkcipher	=	{
+			.min_keysize	= GOST28147_KEY_SIZE,
+			.max_keysize	= GOST28147_KEY_SIZE,
+			.ivsize		= GOST28147_IV_SIZE,
+			.setkey		= gost28147_mode_setkey_cpa,
+			.encrypt	= gost28147_cnt_crypt,
+			.decrypt	= gost28147_cnt_crypt,
+		}
+	}
+}, {
+	.cra_name	=	"cnt(gost28147-cpb)",
+	.cra_driver_name =	"cnt-gost28147-cpb-generic",
+	.cra_flags	=	CRYPTO_ALG_TYPE_BLKCIPHER,
+	.cra_priority	=	100,
+	.cra_blocksize	=	1,
+	.cra_ctxsize	=	sizeof(struct crypto_gost28147_mode_ctx),
+	.cra_type	=	&crypto_blkcipher_type,
+	.cra_module	=	THIS_MODULE,
+	.cra_u		=	{
+		.blkcipher	=	{
+			.min_keysize	= GOST28147_KEY_SIZE,
+			.max_keysize	= GOST28147_KEY_SIZE,
+			.ivsize		= GOST28147_IV_SIZE,
+			.setkey		= gost28147_mode_setkey_cpb,
+			.encrypt	= gost28147_cnt_crypt,
+			.decrypt	= gost28147_cnt_crypt,
+		}
+	}
+}, {
+	.cra_name	=	"cnt(gost28147-cpc)",
+	.cra_driver_name =	"cnt-gost28147-cpc-generic",
+	.cra_flags	=	CRYPTO_ALG_TYPE_BLKCIPHER,
+	.cra_priority	=	100,
+	.cra_blocksize	=	1,
+	.cra_ctxsize	=	sizeof(struct crypto_gost28147_mode_ctx),
+	.cra_type	=	&crypto_blkcipher_type,
+	.cra_module	=	THIS_MODULE,
+	.cra_u		=	{
+		.blkcipher	=	{
+			.min_keysize	= GOST28147_KEY_SIZE,
+			.max_keysize	= GOST28147_KEY_SIZE,
+			.ivsize		= GOST28147_IV_SIZE,
+			.setkey		= gost28147_mode_setkey_cpc,
+			.encrypt	= gost28147_cnt_crypt,
+			.decrypt	= gost28147_cnt_crypt,
+		}
+	}
+}, {
+	.cra_name	=	"cnt(gost28147-cpd)",
+	.cra_driver_name =	"cnt-gost28147-cpd-generic",
+	.cra_flags	=	CRYPTO_ALG_TYPE_BLKCIPHER,
+	.cra_priority	=	100,
+	.cra_blocksize	=	1,
+	.cra_ctxsize	=	sizeof(struct crypto_gost28147_mode_ctx),
+	.cra_type	=	&crypto_blkcipher_type,
+	.cra_module	=	THIS_MODULE,
+	.cra_u		=	{
+		.blkcipher	=	{
+			.min_keysize	= GOST28147_KEY_SIZE,
+			.max_keysize	= GOST28147_KEY_SIZE,
+			.ivsize		= GOST28147_IV_SIZE,
+			.setkey		= gost28147_mode_setkey_cpd,
+			.encrypt	= gost28147_cnt_crypt,
+			.decrypt	= gost28147_cnt_crypt,
+		}
+	}
+} };
+
+int __init gost28147_modes_init(void)
+{
+	return crypto_register_algs(gost28147_mode_algs, ARRAY_SIZE(gost28147_mode_algs));
+}
+
+void __exit gost28147_modes_fini(void)
+{
+	crypto_unregister_algs(gost28147_mode_algs, ARRAY_SIZE(gost28147_mode_algs));
+}
+#endif
