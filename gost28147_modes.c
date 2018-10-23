@@ -125,6 +125,13 @@ static void gost28147_cfb_encrypt_one(struct crypto_gost28147_mode_ctx *ctx,
 	ctx->block_count++;
 }
 
+static void hexdump(unsigned char *buf, unsigned int len)
+{
+	print_hex_dump(KERN_CONT, "", DUMP_PREFIX_OFFSET,
+			16, 1,
+			buf, len, false);
+}
+
 /* final encrypt and decrypt is the same */
 static void gost28147_cfb_final(struct skcipher_walk *walk,
 		struct crypto_gost28147_mode_ctx *ctx)
@@ -138,6 +145,7 @@ static void gost28147_cfb_final(struct skcipher_walk *walk,
 	gost28147_cfb_encrypt_one(ctx, iv, tmp);
 	crypto_xor_cpy(dst, tmp, src, nbytes);
 	pr_info("Final %d\n", nbytes);
+	hexdump(dst, nbytes);
 }
 
 static int gost28147_cfb_encrypt_segment(struct skcipher_walk *walk,
