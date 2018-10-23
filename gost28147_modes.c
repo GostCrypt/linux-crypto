@@ -51,8 +51,14 @@ struct crypto_gost28147_mode_ctx {
 static inline void crypto_xor_cpy(u8 *dst, const u8 *src1, const u8 *src2,
 				  unsigned int size)
 {
-	memcpy(dst, src1, size);
-	crypto_xor(dst, src2, size);
+	if (dst == src1) {
+		crypto_xor(dst, src2, size);
+	} else if (dst == src2) {
+		crypto_xor(dst, src1, size);
+	} else {
+		memcpy(dst, src1, size);
+		crypto_xor(dst, src2, size);
+	}
 }
 #endif
 
