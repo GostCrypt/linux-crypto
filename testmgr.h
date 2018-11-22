@@ -993,7 +993,7 @@ static const struct hash_testvec hmac_gosthash94_tv_template[] = {
 	},
 };
 
-static const struct hash_testvec hmac_sb256_tv_template[] = {
+static const struct hash_testvec hmac_streebog256_tv_template[] = {
 	{
 		.key	= "\x00\x01\x02\x03\x04\x05\x06\x07"
 			  "\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f"
@@ -1010,7 +1010,7 @@ static const struct hash_testvec hmac_sb256_tv_template[] = {
 	},
 };
 
-static const struct hash_testvec hmac_sb512_tv_template[] = {
+static const struct hash_testvec hmac_streebog512_tv_template[] = {
 	{
 		.key	= "\x00\x01\x02\x03\x04\x05\x06\x07"
 			  "\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f"

@@ -2028,28 +2028,28 @@ static const struct alg_test_desc alg_test_descs[] = {
 		}
 	},
 	{
-		.alg = "hmac(sb256)",
+		.alg = "hmac(streebog256)",
 		.test = alg_test_hash,
 		.suite = {
-			.hash = __VECS(hmac_sb256_tv_template)
+			.hash = __VECS(hmac_streebog256_tv_template)
 		}
 	},
 	{
-		.alg = "hmac(sb512)",
+		.alg = "hmac(streebog512)",
 		.test = alg_test_hash,
 		.suite = {
-			.hash = __VECS(hmac_sb512_tv_template)
+			.hash = __VECS(hmac_streebog512_tv_template)
 		}
 	},
 	{
-		.alg = "sb256",
+		.alg = "streebog256",
 		.test = alg_test_hash,
 		.suite = {
 			.hash = __VECS(streebog_256_tv_template)
 		}
 	},
 	{
-		.alg = "sb512",
+		.alg = "streebog512",
 		.test = alg_test_hash,
 		.suite = {
 			.hash = __VECS(streebog_512_tv_template)

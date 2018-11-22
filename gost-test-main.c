@@ -39,10 +39,10 @@ static const char *gost_tests[] = {
 	"gosthash94",
 	"hmac(gosthash94)",
 #if IS_ENABLED(CONFIG_CRYPTO_STREEBOG)
-	"sb256",
-	"sb512",
-	"hmac(sb256)",
-	"hmac(sb512)",
+	"streebog256",
+	"streebog512",
+	"hmac(streebog256)",
+	"hmac(streebog512)",
 #endif
 };
 
