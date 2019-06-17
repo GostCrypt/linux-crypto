@@ -28,13 +28,12 @@
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
 #include <linux/string.h>
+#include <linux/version.h>
 #if 0
 #include <crypto/aead.h>
 #include <crypto/akcipher.h>
 #include <crypto/kpp.h>
 #endif
-
-#include "internal.h"
 
 static bool notests;
 module_param(notests, bool, 0644);
