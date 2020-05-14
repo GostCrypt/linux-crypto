@@ -1,6 +1,7 @@
 *.o
 *.o.d
 *.ko
+*.mod
 *.mod.*
 *.cmd
 .cache.mk
