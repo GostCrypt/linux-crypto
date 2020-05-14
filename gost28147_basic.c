@@ -89,9 +89,9 @@ EXPORT_SYMBOL_GPL(gost28147_param_TC26_Z);
  * @key_len:	The size of the key.
  * @param:	GOST parameters to be used.
  *
- * Returns 0 on success, on failure the %CRYPTO_TFM_RES_BAD_KEY_LEN flag in tfm
- * is set. &crypto_gost28147_ctx _must_ be the private data embedded in @tfm
- * which is retrieved with crypto_tfm_ctx().
+ * Returns 0 on success. &crypto_gost28147_ctx _must_ be
+ * the private data embedded in @tfm which is retrieved
+ * with crypto_tfm_ctx().
  */
 int crypto_gost28147_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 		unsigned int key_len, const struct gost28147_param *param)
@@ -99,10 +99,8 @@ int crypto_gost28147_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 	struct crypto_gost28147_ctx *ctx = crypto_tfm_ctx(tfm);
 	int i;
 
-	if (key_len != GOST28147_KEY_SIZE) {
-		crypto_tfm_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	if (key_len != GOST28147_KEY_SIZE)
 		return -EINVAL;
-	};
 
 	for (i = 0; i < GOST28147_KEY_SIZE / 4; i++, in_key += 4)
 		ctx->key[i] = get_unaligned_le32(in_key);
@@ -312,10 +310,8 @@ static int gost28147imit_setkey(struct crypto_shash *tfm, const u8 *key,
 	struct crypto_gost28147imit_ctx *ctx = crypto_shash_ctx(tfm);
 	int i;
 
-	if (key_len != GOST28147IMIT_KEY_SIZE) {
-		crypto_shash_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	if (key_len != GOST28147IMIT_KEY_SIZE)
 		return -EINVAL;
-	};
 
 	for (i = 0; i < GOST28147IMIT_KEY_SIZE / 4; i++, key += 4)
 		ctx->key[i] = get_unaligned_le32(key);
