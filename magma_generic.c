@@ -23,7 +23,6 @@ static int magma_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 		unsigned int key_len)
 {
 	struct crypto_magma_ctx *ctx = crypto_tfm_ctx(tfm);
-	u32 *flags = &tfm->crt_flags;
 	int i;
 
 	if (key_len != MAGMA_KEY_SIZE)

@@ -166,7 +166,6 @@ static int kuznyechik_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 		unsigned int key_len)
 {
 	struct crypto_kuznyechik_ctx *ctx = crypto_tfm_ctx(tfm);
-	u32 *flags = &tfm->crt_flags;
 	unsigned int i;
 
 	if (key_len != KUZNYECHIK_KEY_SIZE)
