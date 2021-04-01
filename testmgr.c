@@ -35,6 +35,11 @@
 #include <crypto/kpp.h>
 #endif
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 12, 0)
+#include <crypto/internal/cipher.h>
+MODULE_IMPORT_NS(CRYPTO_INTERNAL);
+#endif
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 1, 0)
 #define CRYPTO_TFM_REQ_FORBID_WEAK_KEYS CRYPTO_TFM_REQ_WEAK_KEY
 #endif
