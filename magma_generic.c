@@ -12,6 +12,7 @@
 #include <linux/crypto.h>
 #include <linux/module.h>
 #include <asm/unaligned.h>
+#include <crypto/algapi.h>
 #include <crypto/magma.h>
 #include <crypto/gost28147.h>
 
